@@ -5,6 +5,7 @@
 Кто и как взаимодействует с веб-приложением (см. раздел 3.1 ТЗ).
 
 ```mermaid
+%%{init: {"c4": {"diagramMarginX": 40, "diagramMarginY": 30, "c4ShapeMargin": 60, "c4ShapePadding": 25, "width": 280, "height": 200, "fontSize": 15}}}%%
 C4Context
     title Диаграмма контекста: веб-приложение для управления учебными материалами
 
@@ -31,6 +32,7 @@ C4Context
 Из каких частей состоит веб-приложение (см. раздел 3.2 ТЗ).
 
 ```mermaid
+%%{init: {"c4": {"diagramMarginX": 40, "diagramMarginY": 30, "c4ShapeMargin": 60, "c4ShapePadding": 25, "width": 280, "height": 200, "fontSize": 15}}}%%
 C4Container
     title Диаграмма контейнеров: веб-приложение для управления учебными материалами
 
@@ -66,6 +68,7 @@ C4Container
 Из каких модулей состоит Backend (функциональные подсистемы из раздела 4.1 ТЗ).
 
 ```mermaid
+%%{init: {"c4": {"diagramMarginX": 40, "diagramMarginY": 30, "c4ShapeMargin": 70, "c4ShapePadding": 25, "width": 280, "height": 210, "fontSize": 15}}}%%
 C4Component
     title Диаграмма компонентов: серверная часть (Backend)
 
@@ -109,6 +112,7 @@ C4Component
 Схема запуска через Docker Compose (см. раздел 6 ТЗ).
 
 ```mermaid
+%%{init: {"c4": {"diagramMarginX": 40, "diagramMarginY": 30, "c4ShapeMargin": 50, "c4ShapePadding": 20, "width": 260, "height": 170, "fontSize": 15}}}%%
 C4Deployment
     title Диаграмма развёртывания: сервер Заказчика (ВолгГТУ)
 
