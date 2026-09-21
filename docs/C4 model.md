@@ -17,11 +17,13 @@ C4Context
     System_Ext(mail, "Почтовый сервер", "Отправка ссылок для восстановления пароля")
     System_Ext(external, "Внешние информационные системы", "Интеграция через REST API")
 
-    Rel_D(student, webapp, "Просматривает и скачивает материалы", "HTTPS")
-    Rel_D(teacher, webapp, "Управляет материалами", "HTTPS")
-    Rel_D(admin, webapp, "Администрирует систему", "HTTPS")
-    Rel_R(external, webapp, "Обращается к данным", "REST API / JSON")
-    Rel_R(webapp, mail, "Отправляет письма", "SMTP")
+    Rel(student, webapp, "Просматривает и скачивает материалы", "HTTPS")
+    Rel(teacher, webapp, "Управляет материалами", "HTTPS")
+    Rel(admin, webapp, "Администрирует систему", "HTTPS")
+    Rel(webapp, mail, "Отправляет письма", "SMTP")
+    Rel(external, webapp, "Обращается к данным", "REST API / JSON")
+
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```
 
 ## Уровень 2. Контейнеры
@@ -46,15 +48,17 @@ C4Container
     System_Ext(mail, "Почтовый сервер", "Восстановление пароля")
     System_Ext(external, "Внешние информационные системы", "Интеграция через API")
 
-    Rel_D(student, frontend, "Использует", "HTTPS")
-    Rel_D(teacher, frontend, "Использует", "HTTPS")
-    Rel_D(admin, frontend, "Использует", "HTTPS")
+    Rel(student, frontend, "Использует", "HTTPS")
+    Rel(teacher, frontend, "Использует", "HTTPS")
+    Rel(admin, frontend, "Использует", "HTTPS")
 
-    Rel_D(frontend, backend, "Вызывает API", "HTTPS, JSON, /api/v1")
-    Rel_DL(backend, db, "Читает и записывает данные", "SQL, порт 5432")
-    Rel_DR(backend, files, "Сохраняет и отдаёт файлы", "Файловый ввод-вывод")
-    Rel_R(backend, mail, "Отправляет ссылки восстановления пароля", "SMTP")
-    Rel_L(external, backend, "Интеграция", "REST API")
+    Rel(frontend, backend, "Вызывает API", "HTTPS, JSON, /api/v1")
+    Rel(backend, db, "Читает и записывает данные", "SQL, порт 5432")
+    Rel(backend, files, "Сохраняет и отдаёт файлы", "Файловый ввод-вывод")
+    Rel(backend, mail, "Отправляет ссылки восстановления пароля", "SMTP")
+    Rel(external, backend, "Интеграция", "REST API")
+
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```
 
 ## Уровень 3. Компоненты серверной части
@@ -79,26 +83,25 @@ C4Component
         Component(audit, "Журналирование действий", "Модуль", "Запись входов, изменений материалов, загрузок, изменений учётных записей")
     }
 
-    Rel_D(frontend, auth, "Вход, восстановление пароля", "HTTPS, /api/v1/auth")
-    Rel_D(frontend, materials, "Работа с материалами", "HTTPS, /api/v1/materials")
-    Rel_D(frontend, search, "Поиск и фильтры", "HTTPS")
-    Rel_D(frontend, users, "Управление пользователями", "HTTPS, /api/v1/users")
+    Rel(frontend, auth, "Вход, восстановление пароля", "HTTPS, /api/v1/auth")
+    Rel(frontend, materials, "Работа с материалами", "HTTPS, /api/v1/materials")
+    Rel(frontend, search, "Поиск и фильтры", "HTTPS")
+    Rel(frontend, users, "Управление пользователями", "HTTPS, /api/v1/users")
 
-    Rel_D(materials, filestore, "Сохраняет и читает файлы")
-    Rel_R(auth, audit, "Фиксирует входы и выходы")
-    Rel_D(materials, audit, "Фиксирует действия")
-    Rel_L(users, audit, "Фиксирует действия")
+    Rel(materials, filestore, "Сохраняет и читает файлы")
+    Rel(materials, audit, "Фиксирует действия")
+    Rel(users, audit, "Фиксирует действия")
+    Rel(auth, audit, "Фиксирует входы и выходы")
 
-    Rel_R(auth, mail, "Отправляет ссылку восстановления", "SMTP")
-    Rel_D(filestore, files, "Читает и записывает", "Файловый ввод-вывод")
+    Rel(auth, mail, "Отправляет ссылку восстановления", "SMTP")
+    Rel(filestore, files, "Читает и записывает", "Файловый ввод-вывод")
+    Rel(auth, db, "Пользователи и роли", "SQL")
+    Rel(materials, db, "Метаданные материалов", "SQL")
+    Rel(search, db, "Поисковые запросы", "SQL")
+    Rel(users, db, "Учётные записи", "SQL")
+    Rel(audit, db, "Журнал событий", "SQL")
 
-    Rel_DL(auth, db, "Пользователи и роли", "SQL")
-    Rel_D(materials, db, "Метаданные материалов", "SQL")
-    Rel_D(search, db, "Поисковые запросы", "SQL")
-    Rel_DR(users, db, "Учётные записи", "SQL")
-    Rel_D(audit, db, "Журнал событий", "SQL")
-
-    UpdateLayoutConfig($c4ShapeInRow="4", $c4BoundaryInRow="1")
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```
 
 ## Развёртывание
@@ -123,9 +126,8 @@ C4Deployment
         }
     }
 
-    Rel_D(frontend, backend, "Вызывает API", "HTTP, JSON")
-    Rel_D(backend, db, "Читает и записывает данные", "SQL")
+    Rel(frontend, backend, "Вызывает API", "HTTP, JSON")
+    Rel(backend, db, "Читает и записывает данные", "SQL")
 ```
 
 > Развёртывание выполняется в двух экземплярах: тестовая среда (предварительные испытания) и промышленная среда (опытная эксплуатация).
-
