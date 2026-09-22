@@ -60,42 +60,56 @@ C4Container
 
 ```mermaid
 C4Component
-    title Диаграмма компонентов Backend
+    title Компоненты серверной части (Backend)
 
-    Container(frontend, "Frontend", "Nginx, SPA", "Интерфейсы пользователей")
-    ContainerDb(db, "База данных", "PostgreSQL", "Метаданные и журнал")
-    ContainerDb(files, "Хранилище файлов", "Docker volume", "Учебные материалы")
-    System_Ext(mail, "Почтовый сервер", "Восстановление пароля")
+    Container(frontend, "Frontend", "Nginx / SPA", "Интерфейс")
+    System_Ext(mail, "Почтовый сервер", "SMTP")
 
     Container_Boundary(backend, "Backend") {
-        Component(auth, "Авторизация", "REST API", "Вход, JWT, роли и восстановление пароля")
-        Component(materials, "Материалы", "REST API", "Создание, редактирование, удаление и просмотр")
-        Component(search, "Поиск", "REST API", "Полнотекстовый поиск, фильтры и сортировка")
-        Component(users, "Пользователи", "REST API", "Регистрация, роли, блокировка и удаление")
-        Component(filestore, "Файлы", "Модуль", "Проверка, сохранение и выдача файлов")
-        Component(audit, "Журнал", "Модуль", "Запись действий пользователей")
+        Component(auth, "Авторизация", "REST API", "Вход, JWT, роли")
+        Component(materials, "Материалы", "REST API", "CRUD материалов")
+        Component(search, "Поиск", "REST API", "Поиск и фильтры")
+        Component(users, "Пользователи", "REST API", "Роли и учётные записи")
+        Component(filestore, "Файлы", "Модуль", "Проверка и хранение")
+        Component(audit, "Журнал", "Модуль", "Запись действий")
     }
 
-    Rel_D(frontend, auth, "Auth API")
-    Rel_D(frontend, materials, "Materials API")
-    Rel_D(frontend, search, "Search API")
-    Rel_D(frontend, users, "Users API")
+    ContainerDb(db, "База данных", "PostgreSQL", "Данные системы")
+    ContainerDb(files, "Хранилище файлов", "Docker volume", "Учебные файлы")
 
-    Rel_R(materials, filestore, "Файлы")
-    Rel_D(materials, audit, "События")
-    Rel_D(users, audit, "События")
-    Rel_L(auth, audit, "Входы и выходы")
+    Rel(frontend, auth, "API")
+    Rel(frontend, materials, "API")
+    Rel(frontend, search, "API")
+    Rel(frontend, users, "API")
 
-    Rel_R(auth, mail, "SMTP")
-    Rel_D(filestore, files, "Файловый ввод-вывод")
-    Rel_D(auth, db, "Пользователи")
-    Rel_D(materials, db, "Метаданные")
-    Rel_D(search, db, "Поиск")
-    Rel_D(users, db, "Учётные записи")
-    Rel_D(audit, db, "Журнал")
+    Rel(materials, filestore, "Файлы")
+    Rel(materials, audit, "События")
+    Rel(users, audit, "События")
+    Rel(auth, audit, "Входы")
+
+    Rel(auth, mail, "SMTP")
+
+    Rel(auth, db, "Данные")
+    Rel(materials, db, "Данные")
+    Rel(search, db, "Данные")
+    Rel(users, db, "Данные")
+    Rel(audit, db, "Данные")
+
+    Rel(filestore, files, "Файлы")
 
     UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
 ```
+
+### Описание компонентов
+
+| Компонент | Назначение |
+|---|---|
+| Авторизация | Вход, хеширование, JWT, роли, восстановление пароля |
+| Материалы | Создание, редактирование, удаление и просмотр |
+| Поиск | Полнотекстовый поиск, фильтры и сортировка |
+| Пользователи | Регистрация, роли, блокировка и удаление |
+| Файлы | Проверка, сохранение и выдача файлов |
+| Журнал | Запись действий пользователей |
 
 ## Развёртывание
 
