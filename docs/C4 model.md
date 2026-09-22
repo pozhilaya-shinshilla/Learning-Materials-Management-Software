@@ -1,3 +1,5 @@
+# Архитектура веб-приложения для управления учебными материалами (C4)
+
 ## Уровень 1. Контекст системы
 
 Кто и как взаимодействует с веб-приложением (см. раздел 3.1 ТЗ).
@@ -6,126 +8,126 @@
 C4Context
     title Диаграмма контекста: веб-приложение для управления учебными материалами
 
-    Person(student, "Студент", "Ищет, просматривает и скачивает материалы")
-    Person(teacher, "Преподаватель", "Загружает и редактирует материалы")
-    Person(admin, "Администратор", "Управляет пользователями и системой")
+    Person(student, "Студент", "Ищет, просматривает и скачивает материалы, добавляет в избранное, оставляет комментарии")
+    Person(teacher, "Преподаватель", "Загружает, структурирует, редактирует и удаляет учебные материалы")
+    Person(admin, "Администратор", "Управляет пользователями, ролями, структурой дисциплин, просматривает журнал событий")
 
-    System(webapp, "Веб-приложение", "Единый ресурс для хранения и поиска материалов ВолгГТУ")
+    System(webapp, "Веб-приложение", "Единый ресурс для хранения, поиска и предоставления доступа к учебным материалам ВолгГТУ")
 
-    System_Ext(mail, "Почтовый сервер", "Отправка писем сброса пароля")
-    System_Ext(external, "Внешние ИС", "Интеграция через REST API")
+    System_Ext(mail, "Почтовый сервер", "Отправка ссылок для восстановления пароля")
+    System_Ext(external, "Внешние информационные системы", "Интеграция через REST API")
 
-    Rel(student, webapp, "Просмотр и скачивание", "HTTPS")
-    Rel(teacher, webapp, "Управление контентом", "HTTPS")
-    Rel(admin, webapp, "Администрирование", "HTTPS")
-    
-    Rel(webapp, mail, "Отправка писем", "SMTP")
-    Rel(external, webapp, "Обращение к данным", "REST API / JSON")
+    Rel(student, webapp, "Просматривает и скачивает материалы", "HTTPS")
+    Rel(teacher, webapp, "Управляет материалами", "HTTPS")
+    Rel(admin, webapp, "Администрирует систему", "HTTPS")
+    Rel(webapp, mail, "Отправляет письма", "SMTP")
+    Rel(external, webapp, "Обращается к данным", "REST API / JSON")
 
     UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+```
 
 ## Уровень 2. Контейнеры
 
+Из каких частей состоит веб-приложение (см. раздел 3.2 ТЗ).
+
+```mermaid
 C4Container
     title Диаграмма контейнеров: веб-приложение для управления учебными материалами
 
-    Person(users, "Пользователи", "Студенты, Преподаватели, Администраторы")
+    Person(student, "Студент", "Просмотр, поиск, скачивание материалов")
+    Person(teacher, "Преподаватель", "Загрузка и редактирование материалов")
+    Person(admin, "Администратор", "Управление пользователями, журнал событий")
 
     System_Boundary(webapp, "Веб-приложение") {
-        Container(frontend, "Клиентская часть (Frontend)", "Nginx, SPA", "Интерфейсы трёх ролей, адаптивная вёрстка")
-        Container(backend, "Серверная часть (Backend)", "REST API", "Аутентификация, бизнес-логика, поиск, журнал")
-        ContainerDb(db, "База данных", "PostgreSQL", "Пользователи, материалы, комментарии, логи")
-        ContainerDb(files, "Хранилище файлов", "Том Docker", "Файлы материалов (до 20 МБ)")
+        Container(frontend, "Клиентская часть (Frontend)", "Nginx, SPA", "Интерфейсы студента, преподавателя и администратора, адаптивная вёрстка от 320 px")
+        Container(backend, "Серверная часть (Backend)", "REST API", "Аутентификация, ролевая модель, бизнес-логика, поиск и фильтрация, журналирование")
+        ContainerDb(db, "База данных", "PostgreSQL", "Пользователи, материалы, дисциплины, избранное, комментарии, журнал событий")
+        ContainerDb(files, "Хранилище файлов", "Том Docker / файловая система", "Загруженные файлы: PDF, DOCX, PPTX, XLSX, JPG, PNG, до 20 МБ")
     }
 
     System_Ext(mail, "Почтовый сервер", "Восстановление пароля")
-    System_Ext(external, "Внешние ИС", "Интеграция через API")
+    System_Ext(external, "Внешние информационные системы", "Интеграция через API")
 
-    Rel(users, frontend, "Использует интерфейс", "HTTPS")
-    Rel(frontend, backend, "Вызывает API", "HTTPS / JSON")
-    
-    Rel(backend, db, "Читает и записывает данные", "SQL")
-    Rel(backend, files, "Сохраняет и отдаёт файлы", "I/O")
-    Rel(backend, mail, "Отправляет письма", "SMTP")
+    Rel(student, frontend, "Использует", "HTTPS")
+    Rel(teacher, frontend, "Использует", "HTTPS")
+    Rel(admin, frontend, "Использует", "HTTPS")
+
+    Rel(frontend, backend, "Вызывает API", "HTTPS, JSON, /api/v1")
+    Rel(backend, db, "Читает и записывает данные", "SQL, порт 5432")
+    Rel(backend, files, "Сохраняет и отдаёт файлы", "Файловый ввод-вывод")
+    Rel(backend, mail, "Отправляет ссылки восстановления пароля", "SMTP")
     Rel(external, backend, "Интеграция", "REST API")
 
-    UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+```
 
 ## Уровень 3. Компоненты серверной части
 
+Из каких модулей состоит Backend (функциональные подсистемы из раздела 4.1 ТЗ).
+
+```mermaid
 C4Component
     title Диаграмма компонентов: серверная часть (Backend)
 
-    Container(frontend, "Клиентская часть (Frontend)", "Nginx, SPA", "Интерфейсы трех ролей")
-    System_Ext(mail, "Почтовый сервер", "SMTP", "Восстановление пароля")
+    Container(frontend, "Клиентская часть (Frontend)", "Nginx, SPA", "Интерфейсы трёх ролей")
+    ContainerDb(db, "База данных", "PostgreSQL", "Пользователи, материалы, журнал событий")
+    ContainerDb(files, "Хранилище файлов", "Том Docker", "Файлы учебных материалов")
+    System_Ext(mail, "Почтовый сервер", "Восстановление пароля")
 
     Container_Boundary(backend, "Серверная часть (Backend)") {
-        Component(auth, "Идентификация и авторизация", "REST API", "JWT, роли, сброс пароля")
-        Component(users, "Управление пользователями", "REST API", "Регистрация, роли, блокировка")
-        Component(materials, "Управление материалами", "REST API", "CRUD материалов, корзина")
-        Component(search, "Поиск и фильтрация", "REST API", "Полнотекстовый поиск с морфологией")
-        
-        Component(filestore, "Управление файлами", "Модуль", "Проверка формата/размера, I/O")
-        Component(audit, "Журналирование действий", "Модуль", "Запись событий и логов")
+        Component(auth, "Идентификация и авторизация", "REST API", "Вход по логину и паролю, хеширование паролей, токены JWT, ролевая модель, восстановление пароля")
+        Component(materials, "Управление материалами", "REST API", "Создание, редактирование, удаление (в корзину) и просмотр материалов")
+        Component(search, "Поиск и фильтрация", "REST API", "Полнотекстовый поиск с морфологией русского языка, фильтры, сортировка")
+        Component(users, "Управление пользователями", "REST API", "Регистрация, смена ролей, блокировка, удаление")
+        Component(filestore, "Хранение и управление файлами", "Модуль", "Проверка формата и размера (до 20 МБ), сохранение и выдача файлов")
+        Component(audit, "Журналирование действий", "Модуль", "Запись входов, изменений материалов, загрузок, изменений учётных записей")
     }
 
-    ContainerDb(db, "База данных", "PostgreSQL", "Метаданные и пользователи")
-    ContainerDb(files, "Хранилище файлов", "Том Docker", "Файлы учебных материалов")
+    Rel(frontend, auth, "Вход, восстановление пароля", "HTTPS, /api/v1/auth")
+    Rel(frontend, materials, "Работа с материалами", "HTTPS, /api/v1/materials")
+    Rel(frontend, search, "Поиск и фильтры", "HTTPS")
+    Rel(frontend, users, "Управление пользователями", "HTTPS, /api/v1/users")
 
-    %% Связи сверху вниз (Frontend -> API)
-    Rel(frontend, auth, "Вход и доступ", "HTTPS")
-    Rel(frontend, users, "Пользователи", "HTTPS")
-    Rel(frontend, materials, "Материалы", "HTTPS")
-    Rel(frontend, search, "Поиск", "HTTPS")
-
-    %% Внутренние связи Backend
-    Rel(materials, filestore, "Передача файлов")
-    Rel(auth, audit, "Фиксирует входы")
-    Rel(materials, audit, "Фиксирует изменения")
+    Rel(materials, filestore, "Сохраняет и читает файлы")
+    Rel(materials, audit, "Фиксирует действия")
     Rel(users, audit, "Фиксирует действия")
+    Rel(auth, audit, "Фиксирует входы и выходы")
 
-    %% Связи с внешними сервисами и БД
-    Rel(auth, mail, "Отправка ссылок", "SMTP")
-    Rel(filestore, files, "Запись и чтение", "I/O")
-    
-    Rel(auth, db, "Данные пользователей", "SQL")
+    Rel(auth, mail, "Отправляет ссылку восстановления", "SMTP")
+    Rel(filestore, files, "Читает и записывает", "Файловый ввод-вывод")
+    Rel(auth, db, "Пользователи и роли", "SQL")
+    Rel(materials, db, "Метаданные материалов", "SQL")
+    Rel(search, db, "Поисковые запросы", "SQL")
     Rel(users, db, "Учётные записи", "SQL")
-    Rel(materials, db, "Метаданные", "SQL")
-    Rel(search, db, "Поисковый индекс", "SQL")
     Rel(audit, db, "Журнал событий", "SQL")
 
-    UpdateLayoutConfig($c4ShapeInRow="4", $c4BoundaryInRow="1")
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```
-
-### Описание компонентов
-
-| Компонент | Назначение |
-|---|---|
-| Авторизация | Вход, хеширование, JWT, роли, восстановление пароля |
-| Материалы | Создание, редактирование, удаление и просмотр |
-| Поиск | Полнотекстовый поиск, фильтры и сортировка |
-| Пользователи | Регистрация, роли, блокировка и удаление |
-| Файлы | Проверка, сохранение и выдача файлов |
-| Журнал | Запись действий пользователей |
 
 ## Развёртывание
 
+Схема запуска через Docker Compose (см. раздел 6 ТЗ).
+
+```mermaid
 C4Deployment
     title Диаграмма развёртывания: сервер Заказчика (ВолгГТУ)
 
-    Deployment_Node(server, "Сервер Заказчика", "Linux Ubuntu 20.04+ / Windows Server") {
-        Deployment_Node(docker, "Docker Engine 24+", "Docker Compose v2") {
+    Deployment_Node(server, "Сервер Заказчика", "Linux Ubuntu 20.04+ или Windows Server с WSL2") {
+        Deployment_Node(docker, "Docker Engine 24+", "Docker Compose v2, файл docker-compose.yml") {
             Deployment_Node(feNode, "Контейнер frontend", "Nginx") {
                 Container(frontend, "Клиентская часть", "SPA", "Порты 80/443")
             }
             Deployment_Node(beNode, "Контейнер backend", "REST API") {
-                Container(backend, "Серверная часть", "REST API", "Swagger: /docs, Healthcheck: /api/v1/health")
+                Container(backend, "Серверная часть", "REST API", "Swagger UI: /docs, healthcheck: /api/v1/health")
             }
             Deployment_Node(dbNode, "Контейнер db", "PostgreSQL") {
-                ContainerDb(db, "База данных", "PostgreSQL", "Порт 5432, Docker Volume")
+                ContainerDb(db, "База данных", "PostgreSQL", "Порт 5432, том для сохранения данных")
             }
         }
     }
 
-    Rel(frontend, backend, "Вызывает API", "HTTP / JSON")
+    Rel(frontend, backend, "Вызывает API", "HTTP, JSON")
     Rel(backend, db, "Читает и записывает данные", "SQL")
+```
+
+> Развёртывание выполняется в двух экземплярах: тестовая среда (предварительные испытания) и промышленная среда (опытная эксплуатация).
