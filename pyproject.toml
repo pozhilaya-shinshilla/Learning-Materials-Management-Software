@@ -1,0 +1,27 @@
+[project]
+name = "study-materials-service"
+version = "0.1.0"
+description = "Backend сервиса управления учебными материалами (ВолгГТУ, ИВТ-261)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic",
+    "fastapi",
+    "pydantic",
+    "sqlalchemy",
+]
+
+[dependency-groups]
+dev = [
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
