@@ -5,7 +5,7 @@ import secrets
 from src.domain.enums import AccountStatus, EventType
 from src.domain.exceptions import AccountBlockedError, AuthenticationError
 from src.domain.models import User
-from src.domain.validation import validate_password
+from src.domain.validation import validate_credentials_present, validate_password
 from src.repositories.interfaces import UserRepository
 from src.security.password_hasher import PasswordHasher
 from src.services.event_log_service import EventLogService
@@ -25,14 +25,16 @@ class AuthService:
         self._event_log_service = event_log_service
 
     def login(self, login: str, plain_password: str) -> User:
-        """Verify credentials and return the authenticated user."""
+        """Validate the input, verify credentials and return the authenticated user."""
+        validate_credentials_present(login, plain_password)
+        login = login.strip()
         user = self._user_repository.get_by_login(login)
         if user is None or not self._password_hasher.verify(plain_password, user.password_hash):
             self._event_log_service.record(0, EventType.USER_LOGIN_FAILED, login)
-            raise AuthenticationError("Invalid login or password.")
+            raise AuthenticationError("Неверный логин или пароль.")
         if user.status is AccountStatus.BLOCKED:
             self._event_log_service.record(user.id, EventType.USER_LOGIN_FAILED, login)
-            raise AccountBlockedError("This account has been blocked.")
+            raise AccountBlockedError("Учетная запись заблокирована. Обратитесь к администратору.")
         self._event_log_service.record(user.id, EventType.USER_LOGGED_IN, user.login)
         return user
 
@@ -48,7 +50,7 @@ class AuthService:
         """
         user = self._user_repository.get_by_login(login)
         if user is None:
-            raise AuthenticationError("No account is registered with this login.")
+            raise AuthenticationError("Учетная запись с таким логином не найдена.")
         self._event_log_service.record(user.id, EventType.PASSWORD_RESET_REQUESTED, user.login)
         return secrets.token_urlsafe(24)
 
