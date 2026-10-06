@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from src.domain.enums import AccountStatus, EventType, Role
-from src.domain.exceptions import AuthorizationError, DuplicateLoginError, ValidationError
+from src.domain.exceptions import (
+    AuthorizationError,
+    DuplicateEmailError,
+    DuplicateLoginError,
+    ValidationError,
+)
 from src.domain.models import User
 from src.domain.validation import validate_email, validate_login, validate_password
 from src.repositories.interfaces import UserRepository
@@ -37,13 +42,9 @@ class UserManagementService:
     ) -> User:
         """Register a new account; only administrators may do this."""
         self._require_admin(requesting_user)
-        validate_login(login)
-        validate_email(email)
+        self.ensure_login_available(login)
+        self.ensure_email_available(email)
         validate_password(plain_password)
-        if self._user_repository.get_by_login(login) is not None:
-            raise DuplicateLoginError(f"Логин '{login}' уже занят.")
-        if self._find_by_email(email) is not None:
-            raise DuplicateLoginError(f"Email '{email}' уже используется другой учетной записью.")
         user = User(
             id=0,
             login=login,
@@ -57,10 +58,26 @@ class UserManagementService:
         )
         return created
 
+    def ensure_login_available(self, login: str) -> None:
+        """Raise unless the login is well-formed and not yet taken."""
+        validate_login(login)
+        if self._user_repository.get_by_login(login) is not None:
+            raise DuplicateLoginError(f"Логин '{login}' уже занят.")
+
+    def ensure_email_available(self, email: str) -> None:
+        """Raise unless the email is well-formed and not yet used."""
+        validate_email(email)
+        if self._find_by_email(email) is not None:
+            raise DuplicateEmailError(f"Email '{email}' уже используется другой учетной записью.")
+
     def change_role(self, requesting_user: User, target_user_id: int, new_role: Role) -> User:
         """Change another user's role; only administrators may do this."""
         self._require_admin(requesting_user)
         target = self._get_existing_user(target_user_id)
+        if target.id == requesting_user.id:
+            raise AuthorizationError("Нельзя изменить роль собственной учетной записи.")
+        if target.role is new_role:
+            raise ValidationError(f"У пользователя уже роль «{new_role.label}».")
         target.role = new_role
         self._user_repository.update(target)
         self._event_log_service.record(
@@ -74,6 +91,9 @@ class UserManagementService:
         target = self._get_existing_user(target_user_id)
         if blocked and target.id == requesting_user.id:
             raise AuthorizationError("Нельзя заблокировать собственную учетную запись.")
+        if blocked == (target.status is AccountStatus.BLOCKED):
+            state = "уже заблокирован" if blocked else "не заблокирован"
+            raise ValidationError(f"Пользователь {target.login} {state}.")
         target.status = AccountStatus.BLOCKED if blocked else AccountStatus.ACTIVE
         self._user_repository.update(target)
         event_type = EventType.USER_BLOCKED if blocked else EventType.USER_UNBLOCKED
@@ -100,7 +120,7 @@ class UserManagementService:
     def _get_existing_user(self, user_id: int) -> User:
         user = self._user_repository.get_by_id(user_id)
         if user is None:
-            raise ValidationError(f"Пользователь с id {user_id} не найден.")
+            raise ValidationError(f"Пользователь с ID {user_id} не найден.")
         return user
 
     def _require_admin(self, requesting_user: User) -> None:
