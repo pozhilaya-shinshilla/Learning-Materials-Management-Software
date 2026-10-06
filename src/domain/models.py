@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 from src.domain.enums import AccountStatus, EventType, FileType, Role
+
+
+def _now() -> datetime:
+    """Текущий момент времени в UTC (с часовым поясом)."""
+    return datetime.now(UTC)
 
 
 @dataclass
@@ -53,7 +58,7 @@ class Material:
     file_size_bytes: int
     author_id: int
     storage_path: str = ""
-    uploaded_at: datetime = field(default_factory=datetime.utcnow)
+    uploaded_at: datetime = field(default_factory=_now)
 
 
 @dataclass
@@ -62,7 +67,7 @@ class Favorite:
 
     user_id: int
     material_id: int
-    added_at: datetime = field(default_factory=datetime.utcnow)
+    added_at: datetime = field(default_factory=_now)
 
 
 @dataclass
@@ -73,4 +78,4 @@ class Event:
     user_id: int
     event_type: EventType
     target: str
-    occurred_at: datetime = field(default_factory=datetime.utcnow)
+    occurred_at: datetime = field(default_factory=_now)
