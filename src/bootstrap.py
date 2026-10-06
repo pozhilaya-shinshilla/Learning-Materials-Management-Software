@@ -60,7 +60,13 @@ def build_application_context() -> ApplicationContext:
     user_management_service = UserManagementService(
         user_repository, password_hasher, event_log_service
     )
-    material_service = MaterialService(material_repository, event_log_service, file_storage)
+    material_service = MaterialService(
+        material_repository,
+        discipline_repository,
+        topic_repository,
+        event_log_service,
+        file_storage,
+    )
     search_service = SearchService(material_repository)
     favorite_service = FavoriteService(favorite_repository, material_repository, event_log_service)
     catalog_service = CatalogService(discipline_repository, topic_repository, event_log_service)
