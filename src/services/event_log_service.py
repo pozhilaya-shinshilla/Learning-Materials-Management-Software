@@ -20,5 +20,5 @@ class EventLogService:
     def list_events(self, requesting_user: User) -> list[Event]:
         """Return the full event log; only administrators may view it."""
         if requesting_user.role is not Role.ADMIN:
-            raise AuthorizationError("Only administrators may view the event log.")
+            raise AuthorizationError("Журнал событий доступен только администратору.")
         return self._event_repository.list_all()
