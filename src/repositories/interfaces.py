@@ -65,6 +65,10 @@ class TopicRepository(ABC):
         """Return the topic with the given id, or None if not found."""
 
     @abstractmethod
+    def get_by_name(self, discipline_id: int, name: str) -> Topic | None:
+        """Return the topic of the discipline with the given name (case-insensitive), or None."""
+
+    @abstractmethod
     def list_by_discipline(self, discipline_id: int) -> list[Topic]:
         """Return every topic that belongs to the given discipline."""
 
@@ -76,12 +80,9 @@ class MaterialRepository(ABC):
     def add(self, material: Material) -> Material:
         """Persist a new material and return it with its assigned id."""
 
-    def get_by_id(self, topic_id: int) -> Topic | None:
-        """Return the topic with the given id, or None if not found."""
-
     @abstractmethod
-    def get_by_name(self, discipline_id: int, name: str) -> Topic | None:
-        """Return the topic of the discipline with the given name (case-insensitive), or None."""
+    def get_by_id(self, material_id: int) -> Material | None:
+        """Return the material with the given id, or None if not found."""
 
     @abstractmethod
     def list_all(self) -> list[Material]:
