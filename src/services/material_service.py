@@ -8,11 +8,13 @@ from src.domain.exceptions import (
     AuthorizationError,
     EntityNotFoundError,
     FileTooLargeError,
+    SourceFileNotFoundError,
     UnsupportedFileTypeError,
     ValidationError,
 )
 from src.domain.models import Material, User
-from src.repositories.interfaces import MaterialRepository
+from src.domain.validation import MAX_TITLE_LENGTH, require_text
+from src.repositories.interfaces import DisciplineRepository, MaterialRepository, TopicRepository
 from src.services.event_log_service import EventLogService
 from src.storage.file_storage import FileStorage
 
@@ -25,10 +27,14 @@ class MaterialService:
     def __init__(
         self,
         material_repository: MaterialRepository,
+        discipline_repository: DisciplineRepository,
+        topic_repository: TopicRepository,
         event_log_service: EventLogService,
         file_storage: FileStorage,
     ) -> None:
         self._material_repository = material_repository
+        self._discipline_repository = discipline_repository
+        self._topic_repository = topic_repository
         self._event_log_service = event_log_service
         self._file_storage = file_storage
 
@@ -47,15 +53,14 @@ class MaterialService:
         from disk, so the caller never supplies them manually.
         """
         self._require_material_manager(author)
-        if not title:
-            raise ValidationError("Название материала обязательно.")
-        file_type = self._detect_file_type(source_file_path)
-        self._validate_file_size(source_file_path)
+        title = require_text(title, "Название", MAX_TITLE_LENGTH)
+        self._validate_classification(discipline_id, topic_id)
+        file_type = self.validate_source_file(source_file_path)
         stored = self._file_storage.store(source_file_path)
         material = Material(
             id=0,
             title=title,
-            description=description,
+            description=description.strip(),
             discipline_id=discipline_id,
             topic_id=topic_id,
             file_name=stored.file_name,
@@ -82,13 +87,17 @@ class MaterialService:
         material = self._get_existing_material(material_id)
         self._require_ownership(editor, material)
         if title is not None:
-            material.title = title
+            material.title = require_text(title, "Название", MAX_TITLE_LENGTH)
         if description is not None:
-            material.description = description
-        if discipline_id is not None:
-            material.discipline_id = discipline_id
-        if topic_id is not None:
-            material.topic_id = topic_id
+            material.description = description.strip()
+        if discipline_id is not None or topic_id is not None:
+            new_discipline_id = (
+                discipline_id if discipline_id is not None else material.discipline_id
+            )
+            new_topic_id = topic_id if topic_id is not None else material.topic_id
+            self._validate_classification(new_discipline_id, new_topic_id)
+            material.discipline_id = new_discipline_id
+            material.topic_id = new_topic_id
         self._material_repository.update(material)
         self._event_log_service.record(editor.id, EventType.MATERIAL_EDITED, material.title)
         return material
@@ -105,6 +114,17 @@ class MaterialService:
     def list_materials(self) -> list[Material]:
         """Return every material in the catalog."""
         return self._material_repository.list_all()
+
+    def list_editable(self, user: User) -> list[Material]:
+        """Return the materials this user may edit or delete.
+
+        Administrators manage every material; teachers only their own; students none.
+        """
+        if user.role is Role.ADMIN:
+            return self._material_repository.list_all()
+        if user.role is Role.TEACHER:
+            return [m for m in self._material_repository.list_all() if m.author_id == user.id]
+        return []
 
     def get_material(self, material_id: int) -> Material:
         """Return a single material by id."""
@@ -125,31 +145,45 @@ class MaterialService:
     def _get_existing_material(self, material_id: int) -> Material:
         material = self._material_repository.get_by_id(material_id)
         if material is None:
-            raise EntityNotFoundError(f"Материал с id {material_id} не найден.")
+            raise EntityNotFoundError(f"Материал с ID {material_id} не найден.")
         return material
+
+    def validate_source_file(self, source_file_path: Path) -> FileType:
+        """Check that the local file exists, has an allowed type and fits the size limit.
+
+        Returns the detected file type. Interfaces call this right after the user
+        types a path, so a bad path can be re-asked immediately.
+        """
+        if not source_file_path.is_file():
+            raise SourceFileNotFoundError(f"Файл не найден: {source_file_path}")
+        file_type = self._detect_file_type(source_file_path)
+        if source_file_path.stat().st_size > MAX_FILE_SIZE_BYTES:
+            max_mb = MAX_FILE_SIZE_BYTES // (1024 * 1024)
+            raise FileTooLargeError(f"Файл превышает максимально допустимый размер {max_mb} МБ.")
+        return file_type
 
     def _detect_file_type(self, source_file_path: Path) -> FileType:
         extension = source_file_path.suffix.lstrip(".").lower()
         try:
             file_type = FileType(extension)
-        except ValueError as error:
-            allowed = ", ".join(t.value for t in ALLOWED_FILE_TYPES)
+        except ValueError:
+            file_type = None
+        if file_type is None or file_type not in ALLOWED_FILE_TYPES:
+            allowed = ", ".join(sorted(t.value for t in ALLOWED_FILE_TYPES))
+            shown = f"'.{extension}'" if extension else "без расширения"
             raise UnsupportedFileTypeError(
-                f"Формат '.{extension}' не поддерживается. Допустимые форматы: {allowed}."
-            ) from error
-        if file_type not in ALLOWED_FILE_TYPES:
-            allowed = ", ".join(t.value for t in ALLOWED_FILE_TYPES)
-            raise UnsupportedFileTypeError(
-                f"Формат '.{extension}' не поддерживается. Допустимые форматы: {allowed}."
+                f"Формат {shown} не поддерживается. Допустимые форматы: {allowed}."
             )
         return file_type
 
-    def _validate_file_size(self, source_file_path: Path) -> None:
-        if not source_file_path.is_file():
-            return
-        if source_file_path.stat().st_size > MAX_FILE_SIZE_BYTES:
-            max_mb = MAX_FILE_SIZE_BYTES // (1024 * 1024)
-            raise FileTooLargeError(f"Файл превышает максимально допустимый размер {max_mb} МБ.")
+    def _validate_classification(self, discipline_id: int, topic_id: int) -> None:
+        if self._discipline_repository.get_by_id(discipline_id) is None:
+            raise ValidationError("Указанная дисциплина не существует.")
+        topic = self._topic_repository.get_by_id(topic_id)
+        if topic is None:
+            raise ValidationError("Указанная тема не существует.")
+        if topic.discipline_id != discipline_id:
+            raise ValidationError("Тема не относится к выбранной дисциплине.")
 
     def _require_material_manager(self, user: User) -> None:
         if user.role not in _MATERIAL_MANAGER_ROLES:
