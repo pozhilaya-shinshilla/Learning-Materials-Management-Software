@@ -1,23 +1,47 @@
+"""Перечисления предметной области.
+
+У каждого значения есть машинное имя (`value`, английское — оно хранится и
+сравнивается в коде) и человекочитаемая подпись (`label`, русская — её
+показывает интерфейс). Так CLI не приходится дублировать переводы у себя.
+"""
+
 from enum import StrEnum
 
 
 class Role(StrEnum):
-    """User role in the role-based access model."""
+    """Роль пользователя в ролевой модели доступа."""
 
     STUDENT = "student"
     TEACHER = "teacher"
     ADMIN = "admin"
 
+    @property
+    def label(self) -> str:
+        """Название роли для показа пользователю."""
+        return {
+            Role.STUDENT: "студент",
+            Role.TEACHER: "преподаватель",
+            Role.ADMIN: "администратор",
+        }[self]
+
 
 class AccountStatus(StrEnum):
-    """Lifecycle status of a user account."""
+    """Статус учётной записи."""
 
     ACTIVE = "active"
     BLOCKED = "blocked"
 
+    @property
+    def label(self) -> str:
+        """Название статуса для показа пользователю."""
+        return {
+            AccountStatus.ACTIVE: "активен",
+            AccountStatus.BLOCKED: "заблокирован",
+        }[self]
+
 
 class FileType(StrEnum):
-    """File formats supported for teaching materials."""
+    """Форматы файлов, поддерживаемые для учебных материалов."""
 
     PDF = "pdf"
     DOCX = "docx"
@@ -28,7 +52,7 @@ class FileType(StrEnum):
 
 
 class EventType(StrEnum):
-    """Types of events written to the system event log."""
+    """Типы событий, записываемых в журнал."""
 
     USER_LOGGED_IN = "user_logged_in"
     USER_LOGIN_FAILED = "user_login_failed"
@@ -49,16 +73,43 @@ class EventType(StrEnum):
     PASSWORD_RESET_REQUESTED = "password_reset_requested"
     PASSWORD_RESET = "password_reset"
 
+    @property
+    def label(self) -> str:
+        """Описание события для показа пользователю."""
+        return _EVENT_LABELS[self]
+
+
+_EVENT_LABELS: dict[EventType, str] = {
+    EventType.USER_LOGGED_IN: "вход в систему",
+    EventType.USER_LOGIN_FAILED: "неудачная попытка входа",
+    EventType.USER_LOGGED_OUT: "выход из системы",
+    EventType.MATERIAL_CREATED: "материал создан",
+    EventType.MATERIAL_EDITED: "материал изменён",
+    EventType.MATERIAL_DELETED: "материал удалён",
+    EventType.MATERIAL_DOWNLOADED: "материал скачан",
+    EventType.FILE_UPLOADED: "файл загружен",
+    EventType.FAVORITE_ADDED: "добавлено в избранное",
+    EventType.FAVORITE_REMOVED: "убрано из избранного",
+    EventType.DISCIPLINE_CREATED: "дисциплина создана",
+    EventType.TOPIC_CREATED: "тема создана",
+    EventType.USER_ACCOUNT_CHANGED: "изменена учётная запись",
+    EventType.USER_ROLE_CHANGED: "изменена роль пользователя",
+    EventType.USER_BLOCKED: "пользователь заблокирован",
+    EventType.USER_UNBLOCKED: "пользователь разблокирован",
+    EventType.PASSWORD_RESET_REQUESTED: "запрошен сброс пароля",
+    EventType.PASSWORD_RESET: "пароль изменён",
+}
+
 
 class SortField(StrEnum):
-    """Fields that material listings can be sorted by."""
+    """Поля, по которым можно сортировать список материалов."""
 
     UPLOAD_DATE = "upload_date"
     TITLE = "title"
 
 
 class SortOrder(StrEnum):
-    """Sort direction for material listings."""
+    """Направление сортировки."""
 
     ASCENDING = "asc"
     DESCENDING = "desc"
