@@ -67,6 +67,13 @@ class InMemoryDisciplineRepository(DisciplineRepository):
         """Return the discipline with the given id, or None if not found."""
         return self._disciplines.get(discipline_id)
 
+    def get_by_name(self, name: str) -> Discipline | None:
+        """Return the discipline with the given name (case-insensitive), or None."""
+        for discipline in self._disciplines.values():
+            if discipline.name.casefold() == name.casefold():
+                return discipline
+        return None
+
     def list_all(self) -> list[Discipline]:
         """Return every discipline."""
         return list(self._disciplines.values())
@@ -89,6 +96,13 @@ class InMemoryTopicRepository(TopicRepository):
     def get_by_id(self, topic_id: int) -> Topic | None:
         """Return the topic with the given id, or None if not found."""
         return self._topics.get(topic_id)
+
+    def get_by_name(self, discipline_id: int, name: str) -> Topic | None:
+        """Return the topic of the discipline with the given name (case-insensitive), or None."""
+        for topic in self._topics.values():
+            if topic.discipline_id == discipline_id and topic.name.casefold() == name.casefold():
+                return topic
+        return None
 
     def list_by_discipline(self, discipline_id: int) -> list[Topic]:
         """Return every topic that belongs to the given discipline."""
