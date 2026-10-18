@@ -11,28 +11,28 @@ _SALT_BYTES = 16
 
 
 class PasswordHasher(ABC):
-    """Contract for hashing and verifying user passwords."""
+    """Контракт хеширования и проверки паролей пользователей."""
 
     @abstractmethod
     def hash(self, plain_password: str) -> str:
-        """Return a salted hash of the given plaintext password."""
+        """Вернуть хеш пароля, посоленный случайной солью."""
 
     @abstractmethod
     def verify(self, plain_password: str, password_hash: str) -> bool:
-        """Return whether the plaintext password matches the given hash."""
+        """Вернуть, соответствует ли введённый пароль хешу."""
 
 
 class Pbkdf2PasswordHasher(PasswordHasher):
-    """Hashes passwords with PBKDF2-HMAC-SHA256, as required by the spec."""
+    """Хеширует пароли алгоритмом PBKDF2-HMAC-SHA256, как требует задание."""
 
     def hash(self, plain_password: str) -> str:
-        """Return a salted hash of the given plaintext password."""
+        """Вернуть хеш пароля, посоленный случайной солью."""
         salt = os.urandom(_SALT_BYTES)
         digest = hashlib.pbkdf2_hmac(_ALGORITHM, plain_password.encode("utf-8"), salt, _ITERATIONS)
         return f"{_ALGORITHM}${_ITERATIONS}${salt.hex()}${digest.hex()}"
 
     def verify(self, plain_password: str, password_hash: str) -> bool:
-        """Return whether the plaintext password matches the given hash."""
+        """Вернуть, соответствует ли введённый пароль хешу."""
         try:
             algorithm, iterations_text, salt_hex, digest_hex = password_hash.split("$")
             iterations = int(iterations_text)
