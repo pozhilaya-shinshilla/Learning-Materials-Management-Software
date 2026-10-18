@@ -12,147 +12,155 @@ from src.repositories.interfaces import (
 
 
 class InMemoryUserRepository(UserRepository):
-    """Keeps users in a process-local dictionary, keyed by id."""
+    """Хранит пользователей в словаре в памяти процесса, ключ — id."""
 
     def __init__(self) -> None:
         self._users: dict[int, User] = {}
         self._next_id: int = 1
 
     def add(self, user: User) -> User:
-        """Persist a new user and return it with its assigned id."""
+        """Сохранить нового пользователя и вернуть его с присвоенным id."""
         user.id = self._next_id
         self._users[user.id] = user
         self._next_id += 1
         return user
 
     def get_by_id(self, user_id: int) -> User | None:
-        """Return the user with the given id, or None if not found."""
+        """Вернуть пользователя с указанным id или None, если его нет."""
         return self._users.get(user_id)
 
     def get_by_login(self, login: str) -> User | None:
-        """Return the user with the given login, or None if not found."""
+        """Вернуть пользователя с указанным логином или None, если его нет."""
         for user in self._users.values():
             if user.login == login:
                 return user
         return None
 
     def list_all(self) -> list[User]:
-        """Return every registered user."""
+        """Вернуть всех зарегистрированных пользователей."""
         return list(self._users.values())
 
     def update(self, user: User) -> None:
-        """Persist changes made to an existing user."""
+        """Сохранить изменения существующего пользователя."""
         self._users[user.id] = user
 
     def delete(self, user_id: int) -> None:
-        """Remove a user by id."""
+        """Удалить пользователя по id."""
         self._users.pop(user_id, None)
 
 
 class InMemoryDisciplineRepository(DisciplineRepository):
-    """Keeps disciplines in a process-local dictionary, keyed by id."""
+    """Хранит дисциплины в словаре в памяти процесса, ключ — id."""
 
     def __init__(self) -> None:
         self._disciplines: dict[int, Discipline] = {}
         self._next_id: int = 1
 
     def add(self, discipline: Discipline) -> Discipline:
-        """Persist a new discipline and return it with its assigned id."""
+        """Сохранить новую дисциплину и вернуть её с присвоенным id."""
         discipline.id = self._next_id
         self._disciplines[discipline.id] = discipline
         self._next_id += 1
         return discipline
 
     def get_by_id(self, discipline_id: int) -> Discipline | None:
-        """Return the discipline with the given id, or None if not found."""
+        """Вернуть дисциплину с указанным id или None, если её нет."""
         return self._disciplines.get(discipline_id)
 
+    def update(self, discipline: Discipline) -> None:
+        """Сохранить изменения существующей дисциплины."""
+        self._disciplines[discipline.id] = discipline
+
     def get_by_name(self, name: str) -> Discipline | None:
-        """Return the discipline with the given name (case-insensitive), or None."""
+        """Вернуть дисциплину с указанным названием (без учёта регистра) или None."""
         for discipline in self._disciplines.values():
             if discipline.name.casefold() == name.casefold():
                 return discipline
         return None
 
     def list_all(self) -> list[Discipline]:
-        """Return every discipline."""
+        """Вернуть все дисциплины."""
         return list(self._disciplines.values())
 
 
 class InMemoryTopicRepository(TopicRepository):
-    """Keeps topics in a process-local dictionary, keyed by id."""
+    """Хранит темы в словаре в памяти процесса, ключ — id."""
 
     def __init__(self) -> None:
         self._topics: dict[int, Topic] = {}
         self._next_id: int = 1
 
     def add(self, topic: Topic) -> Topic:
-        """Persist a new topic and return it with its assigned id."""
+        """Сохранить новую тему и вернуть её с присвоенным id."""
         topic.id = self._next_id
         self._topics[topic.id] = topic
         self._next_id += 1
         return topic
 
     def get_by_id(self, topic_id: int) -> Topic | None:
-        """Return the topic with the given id, or None if not found."""
+        """Вернуть тему с указанным id или None, если её нет."""
         return self._topics.get(topic_id)
 
+    def update(self, topic: Topic) -> None:
+        """Сохранить изменения существующей темы."""
+        self._topics[topic.id] = topic
+
     def get_by_name(self, discipline_id: int, name: str) -> Topic | None:
-        """Return the topic of the discipline with the given name (case-insensitive), or None."""
+        """Вернуть тему дисциплины с указанным названием (без учёта регистра) или None."""
         for topic in self._topics.values():
             if topic.discipline_id == discipline_id and topic.name.casefold() == name.casefold():
                 return topic
         return None
 
     def list_by_discipline(self, discipline_id: int) -> list[Topic]:
-        """Return every topic that belongs to the given discipline."""
+        """Вернуть все темы указанной дисциплины."""
         return [t for t in self._topics.values() if t.discipline_id == discipline_id]
 
 
 class InMemoryMaterialRepository(MaterialRepository):
-    """Keeps materials in a process-local dictionary, keyed by id."""
+    """Хранит материалы в словаре в памяти процесса, ключ — id."""
 
     def __init__(self) -> None:
         self._materials: dict[int, Material] = {}
         self._next_id: int = 1
 
     def add(self, material: Material) -> Material:
-        """Persist a new material and return it with its assigned id."""
+        """Сохранить новый материал и вернуть его с присвоенным id."""
         material.id = self._next_id
         self._materials[material.id] = material
         self._next_id += 1
         return material
 
     def get_by_id(self, material_id: int) -> Material | None:
-        """Return the material with the given id, or None if not found."""
+        """Вернуть материал с указанным id или None, если его нет."""
         return self._materials.get(material_id)
 
     def list_all(self) -> list[Material]:
-        """Return every material."""
+        """Вернуть все материалы."""
         return list(self._materials.values())
 
     def update(self, material: Material) -> None:
-        """Persist changes made to an existing material."""
+        """Сохранить изменения существующего материала."""
         self._materials[material.id] = material
 
     def delete(self, material_id: int) -> None:
-        """Remove a material by id."""
+        """Удалить материал по id."""
         self._materials.pop(material_id, None)
 
 
 class InMemoryFavoriteRepository(FavoriteRepository):
-    """Keeps favorites in a process-local list."""
+    """Хранит избранное в списке в памяти процесса."""
 
     def __init__(self) -> None:
         self._favorites: list[Favorite] = []
 
     def add(self, favorite: Favorite) -> Favorite:
-        """Persist a new favorite bookmark."""
+        """Сохранить новую закладку в избранном."""
         self._favorites.append(favorite)
         return favorite
 
     def remove(self, user_id: int, material_id: int) -> None:
-        """Remove a favorite bookmark, if it exists."""
+        """Удалить закладку из избранного, если она есть."""
         self._favorites = [
             f
             for f in self._favorites
@@ -160,28 +168,28 @@ class InMemoryFavoriteRepository(FavoriteRepository):
         ]
 
     def list_by_user(self, user_id: int) -> list[Favorite]:
-        """Return every favorite bookmark belonging to the given user."""
+        """Вернуть все закладки указанного пользователя."""
         return [f for f in self._favorites if f.user_id == user_id]
 
     def exists(self, user_id: int, material_id: int) -> bool:
-        """Return whether the given user already bookmarked the material."""
+        """Вернуть, добавил ли пользователь материал в избранное."""
         return any(f.user_id == user_id and f.material_id == material_id for f in self._favorites)
 
 
 class InMemoryEventRepository(EventRepository):
-    """Keeps event log entries in a process-local list."""
+    """Хранит записи журнала событий в списке в памяти процесса."""
 
     def __init__(self) -> None:
         self._events: list[Event] = []
         self._next_id: int = 1
 
     def add(self, event: Event) -> Event:
-        """Persist a new event and return it with its assigned id."""
+        """Сохранить новое событие и вернуть его с присвоенным id."""
         event.id = self._next_id
         self._events.append(event)
         self._next_id += 1
         return event
 
     def list_all(self) -> list[Event]:
-        """Return every logged event, ordered from oldest to newest."""
+        """Вернуть все события журнала от старых к новым."""
         return list(self._events)
