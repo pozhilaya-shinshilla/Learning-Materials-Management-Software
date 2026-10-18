@@ -5,12 +5,16 @@ from pathlib import Path
 from src.config import ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES
 from src.domain.enums import EventType, FileType, Role
 from src.domain.exceptions import (
-    AuthorizationError,
-    EntityNotFoundError,
+    DisciplineDoesNotExistError,
     FileTooLargeError,
+    ForeignMaterialAccessError,
+    MaterialAccessError,
+    MaterialFileNotStoredError,
+    MaterialNotFoundError,
     SourceFileNotFoundError,
+    TopicDisciplineMismatchError,
+    TopicDoesNotExistError,
     UnsupportedFileTypeError,
-    ValidationError,
 )
 from src.domain.models import Material, User
 from src.domain.validation import MAX_TITLE_LENGTH, require_text
@@ -22,7 +26,7 @@ _MATERIAL_MANAGER_ROLES = frozenset({Role.TEACHER, Role.ADMIN})
 
 
 class MaterialService:
-    """Creates, edits, deletes and lists teaching materials."""
+    """Создаёт, изменяет, удаляет и выдаёт списком учебные материалы."""
 
     def __init__(
         self,
@@ -47,10 +51,10 @@ class MaterialService:
         topic_id: int,
         source_file_path: Path,
     ) -> Material:
-        """Add a new material: validates metadata, then uploads the given local file.
+        """Добавить материал: проверить данные, затем загрузить локальный файл.
 
-        The file's type is detected from its extension and its size is read
-        from disk, so the caller never supplies them manually.
+        Тип файла определяется по расширению, а размер читается с диска,
+        поэтому вызывающему коду не нужно передавать их вручную.
         """
         self._require_material_manager(author)
         title = require_text(title, "Название", MAX_TITLE_LENGTH)
@@ -83,7 +87,7 @@ class MaterialService:
         discipline_id: int | None = None,
         topic_id: int | None = None,
     ) -> Material:
-        """Update a material's metadata without requiring a new file."""
+        """Изменить данные материала, не требуя нового файла."""
         material = self._get_existing_material(material_id)
         self._require_ownership(editor, material)
         if title is not None:
@@ -103,7 +107,7 @@ class MaterialService:
         return material
 
     def delete_material(self, remover: User, material_id: int) -> None:
-        """Remove a material and its stored file."""
+        """Удалить материал и его сохранённый файл."""
         material = self._get_existing_material(material_id)
         self._require_ownership(remover, material)
         self._material_repository.delete(material_id)
@@ -112,13 +116,18 @@ class MaterialService:
         self._event_log_service.record(remover.id, EventType.MATERIAL_DELETED, material.title)
 
     def list_materials(self) -> list[Material]:
-        """Return every material in the catalog."""
+        """Вернуть все материалы каталога."""
         return self._material_repository.list_all()
 
-    def list_editable(self, user: User) -> list[Material]:
-        """Return the materials this user may edit or delete.
+    def list_by_author(self, author: User) -> list[Material]:
+        """Вернуть материалы, добавленные указанным пользователем."""
+        return [m for m in self._material_repository.list_all() if m.author_id == author.id]
 
-        Administrators manage every material; teachers only their own; students none.
+    def list_editable(self, user: User) -> list[Material]:
+        """Вернуть материалы, которые пользователь может изменять или удалять.
+
+        Администратор управляет всеми материалами, преподаватель — только своими,
+        студент — никакими.
         """
         if user.role is Role.ADMIN:
             return self._material_repository.list_all()
@@ -127,42 +136,44 @@ class MaterialService:
         return []
 
     def get_material(self, material_id: int) -> Material:
-        """Return a single material by id."""
+        """Вернуть материал по id."""
         return self._get_existing_material(material_id)
 
     def resolve_file_path(self, material_id: int) -> Path:
-        """Return a readable local path to the material's stored file."""
+        """Вернуть локальный путь к сохранённому файлу материала."""
         material = self._get_existing_material(material_id)
         if not material.storage_path:
-            raise EntityNotFoundError("Для этого материала не сохранен файл.")
+            raise MaterialFileNotStoredError()
         return self._file_storage.resolve(material.storage_path)
 
     def record_download(self, downloader: User, material_id: int) -> None:
-        """Log that a user downloaded a material's file."""
+        """Записать в журнал, что пользователь скачал файл материала."""
         material = self._get_existing_material(material_id)
         self._event_log_service.record(downloader.id, EventType.MATERIAL_DOWNLOADED, material.title)
 
     def _get_existing_material(self, material_id: int) -> Material:
+        """Вернуть материал или выбросить ошибку, если его нет."""
         material = self._material_repository.get_by_id(material_id)
         if material is None:
-            raise EntityNotFoundError(f"Материал с ID {material_id} не найден.")
+            raise MaterialNotFoundError(material_id=material_id)
         return material
 
     def validate_source_file(self, source_file_path: Path) -> FileType:
-        """Check that the local file exists, has an allowed type and fits the size limit.
+        """Проверить, что локальный файл существует, имеет разрешённый тип и не слишком большой.
 
-        Returns the detected file type. Interfaces call this right after the user
-        types a path, so a bad path can be re-asked immediately.
+        Возвращает определённый тип файла. Интерфейс вызывает метод сразу после
+        ввода пути, чтобы неверный путь можно было переспросить немедленно.
         """
         if not source_file_path.is_file():
-            raise SourceFileNotFoundError(f"Файл не найден: {source_file_path}")
+            raise SourceFileNotFoundError(path=source_file_path)
         file_type = self._detect_file_type(source_file_path)
         if source_file_path.stat().st_size > MAX_FILE_SIZE_BYTES:
             max_mb = MAX_FILE_SIZE_BYTES // (1024 * 1024)
-            raise FileTooLargeError(f"Файл превышает максимально допустимый размер {max_mb} МБ.")
+            raise FileTooLargeError(max_mb=max_mb)
         return file_type
 
     def _detect_file_type(self, source_file_path: Path) -> FileType:
+        """Определить тип файла по расширению и убедиться, что он разрешён."""
         extension = source_file_path.suffix.lstrip(".").lower()
         try:
             file_type = FileType(extension)
@@ -171,27 +182,26 @@ class MaterialService:
         if file_type is None or file_type not in ALLOWED_FILE_TYPES:
             allowed = ", ".join(sorted(t.value for t in ALLOWED_FILE_TYPES))
             shown = f"'.{extension}'" if extension else "без расширения"
-            raise UnsupportedFileTypeError(
-                f"Формат {shown} не поддерживается. Допустимые форматы: {allowed}."
-            )
+            raise UnsupportedFileTypeError(shown=shown, allowed=allowed)
         return file_type
 
     def _validate_classification(self, discipline_id: int, topic_id: int) -> None:
+        """Проверить, что дисциплина и тема существуют и тема относится к дисциплине."""
         if self._discipline_repository.get_by_id(discipline_id) is None:
-            raise ValidationError("Указанная дисциплина не существует.")
+            raise DisciplineDoesNotExistError()
         topic = self._topic_repository.get_by_id(topic_id)
         if topic is None:
-            raise ValidationError("Указанная тема не существует.")
+            raise TopicDoesNotExistError()
         if topic.discipline_id != discipline_id:
-            raise ValidationError("Тема не относится к выбранной дисциплине.")
+            raise TopicDisciplineMismatchError()
 
     def _require_material_manager(self, user: User) -> None:
+        """Пропустить только преподавателя или администратора."""
         if user.role not in _MATERIAL_MANAGER_ROLES:
-            raise AuthorizationError(
-                "Только преподаватели и администраторы могут управлять материалами."
-            )
+            raise MaterialAccessError()
 
     def _require_ownership(self, user: User, material: Material) -> None:
+        """Проверить, что пользователь вправе менять именно этот материал."""
         self._require_material_manager(user)
         if user.role is Role.TEACHER and material.author_id != user.id:
-            raise AuthorizationError("Преподаватель может изменять только свои материалы.")
+            raise ForeignMaterialAccessError()
