@@ -13,7 +13,7 @@ def _now() -> datetime:
 
 @dataclass
 class User:
-    """A registered account: student, teacher, or administrator."""
+    """Зарегистрированная учётная запись: студент, преподаватель или администратор."""
 
     id: int
     login: str
@@ -23,13 +23,13 @@ class User:
     status: AccountStatus = AccountStatus.ACTIVE
 
     def is_active(self) -> bool:
-        """Return whether the account may currently authenticate."""
+        """Вернуть, может ли учётная запись сейчас входить в систему."""
         return self.status is AccountStatus.ACTIVE
 
 
 @dataclass
 class Discipline:
-    """An academic discipline used to classify materials."""
+    """Учебная дисциплина, по которой классифицируются материалы."""
 
     id: int
     name: str
@@ -37,7 +37,7 @@ class Discipline:
 
 @dataclass
 class Topic:
-    """A topic within a discipline used to classify materials."""
+    """Тема внутри дисциплины, по которой классифицируются материалы."""
 
     id: int
     name: str
@@ -46,7 +46,7 @@ class Topic:
 
 @dataclass
 class Material:
-    """A teaching material: metadata plus a reference to its stored file."""
+    """Учебный материал: описание и ссылка на сохранённый файл."""
 
     id: int
     title: str
@@ -63,7 +63,7 @@ class Material:
 
 @dataclass
 class Favorite:
-    """A student's bookmark of a material."""
+    """Закладка студента на материал (избранное)."""
 
     user_id: int
     material_id: int
@@ -72,10 +72,11 @@ class Favorite:
 
 @dataclass
 class Event:
-    """An entry in the system event log."""
+    """Запись в журнале событий системы."""
 
     id: int
     user_id: int
     event_type: EventType
     target: str
     occurred_at: datetime = field(default_factory=_now)
+
