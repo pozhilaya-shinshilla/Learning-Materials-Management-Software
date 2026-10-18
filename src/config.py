@@ -12,3 +12,5 @@ ALLOWED_FILE_TYPES: frozenset[FileType] = frozenset(
 )
 
 MAX_FILE_SIZE_BYTES: int = 100 * 1024 * 1024
+
+RESET_TOKEN_TTL_MINUTES: int = 30
