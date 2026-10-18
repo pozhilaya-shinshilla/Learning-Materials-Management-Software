@@ -5,6 +5,7 @@ from pathlib import Path
 
 from src.domain.enums import Role
 from src.domain.models import User
+from src.notifications.email_sender import ConsoleEmailSender, EmailSender
 from src.repositories.in_memory import (
     InMemoryDisciplineRepository,
     InMemoryEventRepository,
@@ -33,7 +34,7 @@ _UPLOAD_STORAGE_ROOT = _PROJECT_ROOT / "data" / "uploads"
 
 @dataclass
 class ApplicationContext:
-    """Bundles every fully-wired service the CLI layer depends on."""
+    """Объединяет все готовые к работе сервисы, от которых зависит интерфейс."""
 
     auth_service: AuthService
     user_management_service: UserManagementService
@@ -44,8 +45,14 @@ class ApplicationContext:
     catalog_service: CatalogService
 
 
-def build_application_context() -> ApplicationContext:
-    """Construct in-memory repositories and services, then seed an admin account."""
+def build_application_context(
+    email_sender: EmailSender | None = None, upload_root: Path | None = None
+) -> ApplicationContext:
+    """Создать репозитории в памяти и сервисы, затем добавить учётную запись администратора.
+
+    `email_sender` и `upload_root` можно подменить (в тестах); по умолчанию письма
+    выводятся в консоль, а файлы сохраняются в `data/uploads`.
+    """
     user_repository = InMemoryUserRepository()
     discipline_repository = InMemoryDisciplineRepository()
     topic_repository = InMemoryTopicRepository()
@@ -54,9 +61,11 @@ def build_application_context() -> ApplicationContext:
     event_repository = InMemoryEventRepository()
 
     password_hasher = Pbkdf2PasswordHasher()
-    file_storage = LocalFileStorage(_UPLOAD_STORAGE_ROOT)
+    file_storage = LocalFileStorage(upload_root or _UPLOAD_STORAGE_ROOT)
     event_log_service = EventLogService(event_repository)
-    auth_service = AuthService(user_repository, password_hasher, event_log_service)
+    auth_service = AuthService(
+        user_repository, password_hasher, event_log_service, email_sender or ConsoleEmailSender()
+    )
     user_management_service = UserManagementService(
         user_repository, password_hasher, event_log_service
     )
@@ -87,6 +96,7 @@ def build_application_context() -> ApplicationContext:
 def _seed_admin(
     user_repository: InMemoryUserRepository, password_hasher: Pbkdf2PasswordHasher
 ) -> None:
+    """Создать администратора по умолчанию, если его ещё нет."""
     if user_repository.get_by_login(DEFAULT_ADMIN_LOGIN) is not None:
         return
     admin = User(
