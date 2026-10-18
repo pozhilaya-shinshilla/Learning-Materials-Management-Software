@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from src.domain.enums import EventType
-from src.domain.exceptions import DuplicateEntityError, EntityNotFoundError
+from src.domain.exceptions import (
+    DuplicateFavoriteError,
+    FavoriteNotFoundError,
+    MaterialNotFoundError,
+)
 from src.domain.models import Favorite, Material, User
 from src.repositories.interfaces import FavoriteRepository, MaterialRepository
 from src.services.event_log_service import EventLogService
 
 
 class FavoriteService:
-    """Lets any user bookmark and unbookmark materials for quick access."""
+    """Позволяет любому пользователю добавлять материалы в избранное и убирать их оттуда."""
 
     def __init__(
         self,
@@ -21,27 +25,27 @@ class FavoriteService:
         self._event_log_service = event_log_service
 
     def add_favorite(self, user: User, material_id: int) -> Favorite:
-        """Bookmark a material for the given user."""
+        """Добавить материал в избранное пользователя."""
         material = self._material_repository.get_by_id(material_id)
         if material is None:
-            raise EntityNotFoundError(f"Материал с ID {material_id} не найден.")
+            raise MaterialNotFoundError(material_id=material_id)
         if self._favorite_repository.exists(user.id, material_id):
-            raise DuplicateEntityError(f"Материал «{material.title}» уже в избранном.")
+            raise DuplicateFavoriteError(title=material.title)
         favorite = self._favorite_repository.add(Favorite(user_id=user.id, material_id=material_id))
         self._event_log_service.record(user.id, EventType.FAVORITE_ADDED, material.title)
         return favorite
 
     def remove_favorite(self, user: User, material_id: int) -> None:
-        """Remove a bookmark; raises if the material is not in the user's favorites."""
+        """Убрать материал из избранного; ошибка, если его там нет."""
         if not self._favorite_repository.exists(user.id, material_id):
-            raise EntityNotFoundError(f"Материала с ID {material_id} нет в вашем избранном.")
+            raise FavoriteNotFoundError(material_id=material_id)
         self._favorite_repository.remove(user.id, material_id)
         material = self._material_repository.get_by_id(material_id)
         target = material.title if material is not None else str(material_id)
         self._event_log_service.record(user.id, EventType.FAVORITE_REMOVED, target)
 
     def list_favorites(self, user: User) -> list[Material]:
-        """Return the materials the given user has bookmarked."""
+        """Вернуть материалы, добавленные пользователем в избранное."""
         favorites = self._favorite_repository.list_by_user(user.id)
         materials = []
         for favorite in favorites:
