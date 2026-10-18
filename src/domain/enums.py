@@ -65,7 +65,9 @@ class EventType(StrEnum):
     FAVORITE_ADDED = "favorite_added"
     FAVORITE_REMOVED = "favorite_removed"
     DISCIPLINE_CREATED = "discipline_created"
+    DISCIPLINE_RENAMED = "discipline_renamed"
     TOPIC_CREATED = "topic_created"
+    TOPIC_RENAMED = "topic_renamed"
     USER_ACCOUNT_CHANGED = "user_account_changed"
     USER_ROLE_CHANGED = "user_role_changed"
     USER_BLOCKED = "user_blocked"
@@ -91,7 +93,9 @@ _EVENT_LABELS: dict[EventType, str] = {
     EventType.FAVORITE_ADDED: "добавлено в избранное",
     EventType.FAVORITE_REMOVED: "убрано из избранного",
     EventType.DISCIPLINE_CREATED: "дисциплина создана",
+    EventType.DISCIPLINE_RENAMED: "дисциплина переименована",
     EventType.TOPIC_CREATED: "тема создана",
+    EventType.TOPIC_RENAMED: "тема переименована",
     EventType.USER_ACCOUNT_CHANGED: "изменена учётная запись",
     EventType.USER_ROLE_CHANGED: "изменена роль пользователя",
     EventType.USER_BLOCKED: "пользователь заблокирован",
