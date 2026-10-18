@@ -5,7 +5,7 @@ from src.cli.app import CliApplication
 
 
 def main() -> None:
-    """Wire the application together and start the interactive CLI."""
+    """Собрать приложение из частей и запустить интерактивный интерфейс."""
     context = build_application_context()
     print(
         f"Учетная запись администратора по умолчанию: "
@@ -25,3 +25,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    
