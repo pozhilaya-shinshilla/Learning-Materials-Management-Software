@@ -11,7 +11,7 @@ from src.domain.exceptions import SourceFileNotFoundError
 
 @dataclass
 class StoredFile:
-    """Result of persisting an uploaded file: where it now lives and its size."""
+    """Результат сохранения загруженного файла: где он лежит и какого он размера."""
 
     storage_path: str
     file_name: str
@@ -19,32 +19,32 @@ class StoredFile:
 
 
 class FileStorage(ABC):
-    """Contract for saving and retrieving the binary content of materials."""
+    """Контракт сохранения и получения содержимого файлов материалов."""
 
     @abstractmethod
     def store(self, source_path: Path) -> StoredFile:
-        """Copy the file at source_path into storage and return its record."""
+        """Скопировать файл в хранилище и вернуть сведения о нём."""
 
     @abstractmethod
     def resolve(self, storage_path: str) -> Path:
-        """Return a readable filesystem path for a previously stored file."""
+        """Вернуть путь в файловой системе к ранее сохранённому файлу."""
 
     @abstractmethod
     def delete(self, storage_path: str) -> None:
-        """Remove a previously stored file, ignoring a missing file."""
+        """Удалить ранее сохранённый файл; отсутствие файла не считается ошибкой."""
 
 
 class LocalFileStorage(FileStorage):
-    """Stores files under a local directory, each under a unique generated name."""
+    """Хранит файлы в локальной папке, каждый под уникальным сгенерированным именем."""
 
     def __init__(self, root: Path) -> None:
         self._root = root
         self._root.mkdir(parents=True, exist_ok=True)
 
     def store(self, source_path: Path) -> StoredFile:
-        """Copy the file at source_path into storage and return its record."""
+        """Скопировать файл в хранилище и вернуть сведения о нём."""
         if not source_path.is_file():
-            raise SourceFileNotFoundError(f"Файл не найден: {source_path}")
+            raise SourceFileNotFoundError(path=source_path)
         stored_name = f"{uuid4().hex}_{source_path.name}"
         destination = self._root / stored_name
         shutil.copyfile(source_path, destination)
@@ -55,9 +55,9 @@ class LocalFileStorage(FileStorage):
         )
 
     def resolve(self, storage_path: str) -> Path:
-        """Return a readable filesystem path for a previously stored file."""
+        """Вернуть путь в файловой системе к ранее сохранённому файлу."""
         return Path(storage_path)
 
     def delete(self, storage_path: str) -> None:
-        """Remove a previously stored file, ignoring a missing file."""
+        """Удалить ранее сохранённый файл; отсутствие файла не считается ошибкой."""
         Path(storage_path).unlink(missing_ok=True)
