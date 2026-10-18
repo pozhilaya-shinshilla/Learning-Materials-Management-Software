@@ -1,62 +1,127 @@
 from __future__ import annotations
 
+import hashlib
 import secrets
+from datetime import UTC, datetime, timedelta
 
+from src.config import RESET_TOKEN_TTL_MINUTES
 from src.domain.enums import AccountStatus, EventType
-from src.domain.exceptions import AccountBlockedError, AuthenticationError
+from src.domain.exceptions import AccountBlockedError, AuthenticationError, InvalidResetTokenError
 from src.domain.models import User
-from src.domain.validation import validate_credentials_present, validate_password
+from src.domain.validation import (
+    validate_credentials_present,
+    validate_email,
+    validate_password,
+)
+from src.notifications.email_sender import EmailSender
 from src.repositories.interfaces import UserRepository
 from src.security.password_hasher import PasswordHasher
 from src.services.event_log_service import EventLogService
 
 
 class AuthService:
-    """Handles credential verification and session lifecycle events."""
+    """Проверяет учётные данные и записывает события входа и выхода."""
 
     def __init__(
         self,
         user_repository: UserRepository,
         password_hasher: PasswordHasher,
         event_log_service: EventLogService,
+        email_sender: EmailSender,
+        reset_token_ttl: timedelta = timedelta(minutes=RESET_TOKEN_TTL_MINUTES),
     ) -> None:
         self._user_repository = user_repository
         self._password_hasher = password_hasher
         self._event_log_service = event_log_service
+        self._email_sender = email_sender
+        self._reset_token_ttl = reset_token_ttl
+        # хеш кода -> (id пользователя, момент истечения)
+        self._reset_tokens: dict[str, tuple[int, datetime]] = {}
 
     def login(self, login: str, plain_password: str) -> User:
-        """Validate the input, verify credentials and return the authenticated user."""
+        """Проверить ввод и учётные данные, вернуть вошедшего пользователя."""
         validate_credentials_present(login, plain_password)
         login = login.strip()
         user = self._user_repository.get_by_login(login)
         if user is None or not self._password_hasher.verify(plain_password, user.password_hash):
             self._event_log_service.record(0, EventType.USER_LOGIN_FAILED, login)
-            raise AuthenticationError("Неверный логин или пароль.")
+            raise AuthenticationError()
         if user.status is AccountStatus.BLOCKED:
             self._event_log_service.record(user.id, EventType.USER_LOGIN_FAILED, login)
-            raise AccountBlockedError("Учетная запись заблокирована. Обратитесь к администратору.")
+            raise AccountBlockedError()
         self._event_log_service.record(user.id, EventType.USER_LOGGED_IN, user.login)
         return user
 
     def logout(self, user: User) -> None:
-        """Record that the given user ended their session."""
+        """Записать в журнал, что пользователь завершил сеанс."""
         self._event_log_service.record(user.id, EventType.USER_LOGGED_OUT, user.login)
 
-    def request_password_reset(self, login: str) -> str:
-        """Issue a single-use password-reset token for the given login.
+    def request_password_reset(self, email: str) -> None:
+        """Отправить на email код восстановления пароля.
 
-        Delivering the token by email is outside the scope of this stage;
-        the token is returned so the caller can transmit it.
+        Результат одинаков независимо от того, есть ли такая учётная запись:
+        так по ответу нельзя узнать, какие адреса зарегистрированы.
+        Прежние неиспользованные коды этого пользователя перестают действовать.
         """
-        user = self._user_repository.get_by_login(login)
+        cleaned = email.strip()
+        validate_email(cleaned)
+        user = self._find_by_email(cleaned)
         if user is None:
-            raise AuthenticationError("Учетная запись с таким логином не найдена.")
+            return
+        self._revoke_reset_tokens(user.id)
+        token = secrets.token_hex(6)
+        expires_at = datetime.now(UTC) + self._reset_token_ttl
+        self._reset_tokens[self._hash_token(token)] = (user.id, expires_at)
+        minutes = int(self._reset_token_ttl.total_seconds() // 60)
+        self._email_sender.send(
+            user.email,
+            "Восстановление пароля",
+            f"Здравствуйте, {user.login}!\n"
+            f"Код для восстановления пароля: {token}\n"
+            f"Код действует {minutes} мин. и может быть использован один раз.\n"
+            "Если вы не запрашивали восстановление, просто проигнорируйте это письмо.",
+        )
         self._event_log_service.record(user.id, EventType.PASSWORD_RESET_REQUESTED, user.login)
-        return secrets.token_urlsafe(24)
 
-    def reset_password(self, user: User, new_plain_password: str) -> None:
-        """Set a new password for the given user."""
+    def check_reset_token(self, token: str) -> User:
+        """Вернуть владельца кода или выбросить InvalidResetTokenError."""
+        key = self._hash_token(token.strip())
+        entry = self._reset_tokens.get(key)
+        if entry is None:
+            raise InvalidResetTokenError()
+        user_id, expires_at = entry
+        if datetime.now(UTC) > expires_at:
+            del self._reset_tokens[key]
+            raise InvalidResetTokenError()
+        user = self._user_repository.get_by_id(user_id)
+        if user is None:
+            del self._reset_tokens[key]
+            raise InvalidResetTokenError()
+        return user
+
+    def reset_password_with_token(self, token: str, new_plain_password: str) -> None:
+        """Задать новый пароль по коду из письма; код после этого перестаёт действовать."""
+        user = self.check_reset_token(token)
         validate_password(new_plain_password)
         user.password_hash = self._password_hasher.hash(new_plain_password)
         self._user_repository.update(user)
+        del self._reset_tokens[self._hash_token(token.strip())]
         self._event_log_service.record(user.id, EventType.PASSWORD_RESET, user.login)
+
+    def _find_by_email(self, email: str) -> User | None:
+        """Найти пользователя по email (без учёта регистра)."""
+        for user in self._user_repository.list_all():
+            if user.email.casefold() == email.casefold():
+                return user
+        return None
+
+    def _revoke_reset_tokens(self, user_id: int) -> None:
+        """Аннулировать все выданные пользователю коды восстановления."""
+        self._reset_tokens = {
+            key: entry for key, entry in self._reset_tokens.items() if entry[0] != user_id
+        }
+
+    @staticmethod
+    def _hash_token(token: str) -> str:
+        """Хранить коды только в виде хеша, как и пароли."""
+        return hashlib.sha256(token.encode("utf-8")).hexdigest()
