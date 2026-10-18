@@ -6,124 +6,132 @@ from src.domain.models import Discipline, Event, Favorite, Material, Topic, User
 
 
 class UserRepository(ABC):
-    """Persistence contract for User entities."""
+    """Контракт хранения пользователей."""
 
     @abstractmethod
     def add(self, user: User) -> User:
-        """Persist a new user and return it with its assigned id."""
+        """Сохранить нового пользователя и вернуть его с присвоенным id."""
 
     @abstractmethod
     def get_by_id(self, user_id: int) -> User | None:
-        """Return the user with the given id, or None if not found."""
+        """Вернуть пользователя с указанным id или None, если его нет."""
 
     @abstractmethod
     def get_by_login(self, login: str) -> User | None:
-        """Return the user with the given login, or None if not found."""
+        """Вернуть пользователя с указанным логином или None, если его нет."""
 
     @abstractmethod
     def list_all(self) -> list[User]:
-        """Return every registered user."""
+        """Вернуть всех зарегистрированных пользователей."""
 
     @abstractmethod
     def update(self, user: User) -> None:
-        """Persist changes made to an existing user."""
+        """Сохранить изменения существующего пользователя."""
 
     @abstractmethod
     def delete(self, user_id: int) -> None:
-        """Remove a user by id."""
+        """Удалить пользователя по id."""
 
 
 class DisciplineRepository(ABC):
-    """Persistence contract for Discipline entities."""
+    """Контракт хранения дисциплин."""
 
     @abstractmethod
     def add(self, discipline: Discipline) -> Discipline:
-        """Persist a new discipline and return it with its assigned id."""
+        """Сохранить новую дисциплину и вернуть её с присвоенным id."""
 
     @abstractmethod
     def get_by_id(self, discipline_id: int) -> Discipline | None:
-        """Return the discipline with the given id, or None if not found."""
+        """Вернуть дисциплину с указанным id или None, если её нет."""
+
+    @abstractmethod
+    def update(self, discipline: Discipline) -> None:
+        """Сохранить изменения существующей дисциплины."""
 
     @abstractmethod
     def get_by_name(self, name: str) -> Discipline | None:
-        """Return the discipline with the given name (case-insensitive), or None."""
+        """Вернуть дисциплину с указанным названием (без учёта регистра) или None."""
 
     @abstractmethod
     def list_all(self) -> list[Discipline]:
-        """Return every discipline."""
+        """Вернуть все дисциплины."""
 
 
 class TopicRepository(ABC):
-    """Persistence contract for Topic entities."""
+    """Контракт хранения тем."""
 
     @abstractmethod
     def add(self, topic: Topic) -> Topic:
-        """Persist a new topic and return it with its assigned id."""
+        """Сохранить новую тему и вернуть её с присвоенным id."""
 
     @abstractmethod
     def get_by_id(self, topic_id: int) -> Topic | None:
-        """Return the topic with the given id, or None if not found."""
+        """Вернуть тему с указанным id или None, если её нет."""
+
+    @abstractmethod
+    def update(self, topic: Topic) -> None:
+        """Сохранить изменения существующей темы."""
 
     @abstractmethod
     def get_by_name(self, discipline_id: int, name: str) -> Topic | None:
-        """Return the topic of the discipline with the given name (case-insensitive), or None."""
+        """Вернуть тему дисциплины с указанным названием (без учёта регистра) или None."""
 
     @abstractmethod
     def list_by_discipline(self, discipline_id: int) -> list[Topic]:
-        """Return every topic that belongs to the given discipline."""
+        """Вернуть все темы указанной дисциплины."""
 
 
 class MaterialRepository(ABC):
-    """Persistence contract for Material entities."""
+    """Контракт хранения материалов."""
 
     @abstractmethod
     def add(self, material: Material) -> Material:
-        """Persist a new material and return it with its assigned id."""
+        """Сохранить новый материал и вернуть его с присвоенным id."""
 
     @abstractmethod
     def get_by_id(self, material_id: int) -> Material | None:
-        """Return the material with the given id, or None if not found."""
+        """Вернуть материал с указанным id или None, если его нет."""
 
     @abstractmethod
     def list_all(self) -> list[Material]:
-        """Return every material."""
+        """Вернуть все материалы."""
 
     @abstractmethod
     def update(self, material: Material) -> None:
-        """Persist changes made to an existing material."""
+        """Сохранить изменения существующего материала."""
 
     @abstractmethod
     def delete(self, material_id: int) -> None:
-        """Remove a material by id."""
+        """Удалить материал по id."""
 
 
 class FavoriteRepository(ABC):
-    """Persistence contract for Favorite entities."""
+    """Контракт хранения избранного."""
 
     @abstractmethod
     def add(self, favorite: Favorite) -> Favorite:
-        """Persist a new favorite bookmark."""
+        """Сохранить новую закладку в избранном."""
 
     @abstractmethod
     def remove(self, user_id: int, material_id: int) -> None:
-        """Remove a favorite bookmark, if it exists."""
+        """Удалить закладку из избранного, если она есть."""
 
     @abstractmethod
     def list_by_user(self, user_id: int) -> list[Favorite]:
-        """Return every favorite bookmark belonging to the given user."""
+        """Вернуть все закладки указанного пользователя."""
 
     @abstractmethod
     def exists(self, user_id: int, material_id: int) -> bool:
-        """Return whether the given user already bookmarked the material."""
+        """Вернуть, добавил ли пользователь материал в избранное."""
 
 
 class EventRepository(ABC):
-    """Persistence contract for Event log entries."""
+    """Контракт хранения записей журнала событий."""
 
     @abstractmethod
     def add(self, event: Event) -> Event:
-        """Persist a new event and return it with its assigned id."""
+        """Сохранить новое событие и вернуть его с присвоенным id."""
 
     @abstractmethod
     def list_all(self) -> list[Event]:
-        """Return every logged event, ordered from oldest to newest."""
+        """Вернуть все события журнала от старых к новым."""
