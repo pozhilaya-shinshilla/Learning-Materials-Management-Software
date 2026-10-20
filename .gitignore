@@ -9,5 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
+# Local secrets (admin credentials)
+.env
+
 # Uploaded material files (local storage for this CLI stage)
 data/
