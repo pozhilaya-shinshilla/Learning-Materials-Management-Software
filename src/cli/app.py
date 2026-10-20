@@ -41,7 +41,7 @@ class CliApplication:
     def _sign_in(self) -> User | None:
         """Показать экран входа; None — пользователь выбрал выход из программы."""
         self._io.clear_screen()
-        print("=== Сервис управления учебными материалами ===")
+        print("=== Сервис управления учебными материалами ===(login: admin; password: admin123)")
         return self._auth_controller.sign_in()
 
     def _serve(self, user: User) -> None:
