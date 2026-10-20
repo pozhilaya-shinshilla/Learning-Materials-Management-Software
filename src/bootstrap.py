@@ -22,11 +22,8 @@ from src.services.favorite_service import FavoriteService
 from src.services.material_service import MaterialService
 from src.services.search_service import SearchService
 from src.services.user_management_service import UserManagementService
+from src.settings import AdminSettings, load_admin_settings
 from src.storage.file_storage import LocalFileStorage
-
-DEFAULT_ADMIN_LOGIN = "admin"
-DEFAULT_ADMIN_PASSWORD = "admin123"
-DEFAULT_ADMIN_EMAIL = "admin@example.org"
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _UPLOAD_STORAGE_ROOT = _PROJECT_ROOT / "data" / "uploads"
@@ -46,12 +43,15 @@ class ApplicationContext:
 
 
 def build_application_context(
-    email_sender: EmailSender | None = None, upload_root: Path | None = None
+    email_sender: EmailSender | None = None,
+    upload_root: Path | None = None,
+    admin: AdminSettings | None = None,
 ) -> ApplicationContext:
     """Создать репозитории в памяти и сервисы, затем добавить учётную запись администратора.
 
-    `email_sender` и `upload_root` можно подменить (в тестах); по умолчанию письма
-    выводятся в консоль, а файлы сохраняются в `data/uploads`.
+    `email_sender`, `upload_root` и `admin` можно подменить (в тестах); по умолчанию письма
+    выводятся в консоль, файлы сохраняются в `data/uploads`, а данные администратора
+    берутся из переменных окружения или `.env` (см. `load_admin_settings`).
     """
     user_repository = InMemoryUserRepository()
     discipline_repository = InMemoryDisciplineRepository()
@@ -80,7 +80,7 @@ def build_application_context(
     favorite_service = FavoriteService(favorite_repository, material_repository, event_log_service)
     catalog_service = CatalogService(discipline_repository, topic_repository, event_log_service)
 
-    _seed_admin(user_repository, password_hasher)
+    _seed_admin(user_repository, password_hasher, admin or load_admin_settings())
 
     return ApplicationContext(
         auth_service=auth_service,
@@ -94,16 +94,19 @@ def build_application_context(
 
 
 def _seed_admin(
-    user_repository: InMemoryUserRepository, password_hasher: Pbkdf2PasswordHasher
+    user_repository: InMemoryUserRepository,
+    password_hasher: Pbkdf2PasswordHasher,
+    admin: AdminSettings,
 ) -> None:
-    """Создать администратора по умолчанию, если его ещё нет."""
-    if user_repository.get_by_login(DEFAULT_ADMIN_LOGIN) is not None:
+    """Создать администратора с заданными учётными данными, если его ещё нет."""
+    if user_repository.get_by_login(admin.login) is not None:
         return
-    admin = User(
-        id=0,
-        login=DEFAULT_ADMIN_LOGIN,
-        email=DEFAULT_ADMIN_EMAIL,
-        password_hash=password_hasher.hash(DEFAULT_ADMIN_PASSWORD),
-        role=Role.ADMIN,
+    user_repository.add(
+        User(
+            id=0,
+            login=admin.login,
+            email=admin.email,
+            password_hash=password_hasher.hash(admin.password),
+            role=Role.ADMIN,
+        )
     )
-    user_repository.add(admin)
