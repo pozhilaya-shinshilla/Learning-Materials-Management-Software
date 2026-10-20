@@ -154,16 +154,18 @@ def parse_sort_option(raw: str) -> tuple[SortField, SortOrder]:
     return field, order
 
 
-def optional[T](parser: Callable[[str], T]) -> Callable[[str], T | None]:
-    """Сделать поле необязательным: пустая строка даёт None, остальное разбирает parser.
+class OptionalParser[T]:
+    """Делает поле необязательным: пустая строка даёт None, остальное разбирает parser.
 
     Неверное значение по-прежнему вызывает ошибку проверки, то есть его не
     «молча игнорируют», а переспрашивают.
     """
 
-    def parse(raw: str) -> T | None:
+    def __init__(self, parser: Callable[[str], T]) -> None:
+        self._parser = parser
+
+    def __call__(self, raw: str) -> T | None:
+        """Вернуть None для пустого ввода, иначе результат исходного парсера."""
         if not raw.strip():
             return None
-        return parser(raw)
-
-    return parse
+        return self._parser(raw)
