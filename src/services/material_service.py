@@ -87,21 +87,27 @@ class MaterialService:
         discipline_id: int | None = None,
         topic_id: int | None = None,
     ) -> Material:
-        """Изменить данные материала, не требуя нового файла."""
+        """Изменить данные материала, не требуя нового файла.
+
+        Все новые значения сначала вычисляются и проверяются, и только потом
+        присваиваются: при ошибке проверки материал остаётся прежним.
+        """
         material = self._get_existing_material(material_id)
         self._require_ownership(editor, material)
-        if title is not None:
-            material.title = require_text(title, "Название", MAX_TITLE_LENGTH)
-        if description is not None:
-            material.description = description.strip()
+        new_title = (
+            material.title if title is None else require_text(title, "Название", MAX_TITLE_LENGTH)
+        )
+        new_description = material.description if description is None else description.strip()
+        new_discipline_id = material.discipline_id if discipline_id is None else discipline_id
+        new_topic_id = material.topic_id if topic_id is None else topic_id
+
         if discipline_id is not None or topic_id is not None:
-            new_discipline_id = (
-                discipline_id if discipline_id is not None else material.discipline_id
-            )
-            new_topic_id = topic_id if topic_id is not None else material.topic_id
             self._validate_classification(new_discipline_id, new_topic_id)
-            material.discipline_id = new_discipline_id
-            material.topic_id = new_topic_id
+
+        material.title = new_title
+        material.description = new_description
+        material.discipline_id = new_discipline_id
+        material.topic_id = new_topic_id
         self._material_repository.update(material)
         self._event_log_service.record(editor.id, EventType.MATERIAL_EDITED, material.title)
         return material
