@@ -1,28 +1,29 @@
 from __future__ import annotations
 
-from src.bootstrap import DEFAULT_ADMIN_LOGIN, DEFAULT_ADMIN_PASSWORD, build_application_context
+import sys
+
+from src.bootstrap import build_application_context
 from src.cli.app import CliApplication
+from src.cli.console_io import ConsoleIO
+from src.domain.exceptions import DomainError
+from src.settings import load_admin_settings
 
 
 def main() -> None:
     """Собрать приложение из частей и запустить интерактивный интерфейс."""
-    context = build_application_context()
-    print(
-        f"Учетная запись администратора по умолчанию: "
-        f"{DEFAULT_ADMIN_LOGIN} / {DEFAULT_ADMIN_PASSWORD}"
-    )
-    application = CliApplication(
-        auth_service=context.auth_service,
-        user_management_service=context.user_management_service,
-        material_service=context.material_service,
-        search_service=context.search_service,
-        favorite_service=context.favorite_service,
-        event_log_service=context.event_log_service,
-        catalog_service=context.catalog_service,
-    )
-    application.run()
+    try:
+        admin = load_admin_settings()
+    except DomainError as error:
+        sys.exit(f"Некорректные настройки администратора (ADMIN_*): {error}")
+    if admin.password_generated:
+        print(
+            "ADMIN_PASSWORD не задан: пароль администратора сгенерирован при запуске "
+            "и показывается один раз.\n"
+            f"Логин: {admin.login}, пароль: {admin.password}"
+        )
+    context = build_application_context(admin=admin)
+    CliApplication(context, ConsoleIO()).run()
 
 
 if __name__ == "__main__":
     main()
-    
