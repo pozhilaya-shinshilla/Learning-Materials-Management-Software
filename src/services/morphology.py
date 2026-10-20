@@ -12,6 +12,7 @@ _LATIN_PATTERN = re.compile(r"[a-z]")
 
 @lru_cache(maxsize=2)
 def _get_stemmer(language: str) -> SnowballStemmer:
+    """Вернуть (и закешировать) стеммер Snowball для языка: 'russian' или 'english'."""
     return SnowballStemmer(language)
 
 
