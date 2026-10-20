@@ -12,6 +12,7 @@ class EmailSender(ABC):
 
 
 class ConsoleEmailSender(EmailSender):
+    """Имитация отправки письма выводом в консоль."""
 
     def send(self, to_address: str, subject: str, body: str) -> None:
         """Показать письмо в консоли так, как его увидел бы получатель."""
