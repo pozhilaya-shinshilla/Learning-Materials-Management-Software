@@ -20,7 +20,11 @@ from src.services.event_log_service import EventLogService
 
 
 class AuthService:
-    """Проверяет учётные данные и записывает события входа и выхода."""
+    """Проверяет учётные данные и записывает события входа и выхода.
+
+    Коды восстановления пароля хранятся в памяти в виде «хеш кода -> (id пользователя,
+    момент истечения)».
+    """
 
     def __init__(
         self,
@@ -35,7 +39,6 @@ class AuthService:
         self._event_log_service = event_log_service
         self._email_sender = email_sender
         self._reset_token_ttl = reset_token_ttl
-        # хеш кода -> (id пользователя, момент истечения)
         self._reset_tokens: dict[str, tuple[int, datetime]] = {}
 
     def login(self, login: str, plain_password: str) -> User:
