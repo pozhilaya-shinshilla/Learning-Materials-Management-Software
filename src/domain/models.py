@@ -79,4 +79,3 @@ class Event:
     event_type: EventType
     target: str
     occurred_at: datetime = field(default_factory=_now)
-
