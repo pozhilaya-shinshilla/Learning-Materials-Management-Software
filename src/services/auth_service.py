@@ -1,4 +1,4 @@
-from __future__ import annotations
+ from __future__ import annotations
 
 import hashlib
 import secrets
@@ -6,7 +6,12 @@ from datetime import UTC, datetime, timedelta
 
 from src.config import RESET_TOKEN_TTL_MINUTES
 from src.domain.enums import AccountStatus, EventType
-from src.domain.exceptions import AccountBlockedError, AuthenticationError, InvalidResetTokenError
+from src.domain.exceptions import (
+    AccountBlockedError,
+    AccountDeletedError,
+    AuthenticationError,
+    InvalidResetTokenError,
+)
 from src.domain.models import User
 from src.domain.validation import (
     validate_credentials_present,
@@ -55,6 +60,20 @@ class AuthService:
         self._event_log_service.record(user.id, EventType.USER_LOGGED_IN, user.login)
         return user
 
+    def ensure_session_active(self, user: User) -> User:
+        """Проверить по хранилищу, что учётная запись цела и не заблокирована.
+
+        Возвращает актуальную запись пользователя. Если администратор заблокировал
+        или удалил учётную запись во время сеанса, выбрасывает ошибку, и сеанс
+        нужно завершить.
+        """
+        current = self._user_repository.get_by_id(user.id)
+        if current is None:
+            raise AccountDeletedError()
+        if current.status is AccountStatus.BLOCKED:
+            raise AccountBlockedError()
+        return current
+
     def logout(self, user: User) -> None:
         """Записать в журнал, что пользователь завершил сеанс."""
         self._event_log_service.record(user.id, EventType.USER_LOGGED_OUT, user.login)
@@ -68,7 +87,7 @@ class AuthService:
         """
         cleaned = email.strip()
         validate_email(cleaned)
-        user = self._find_by_email(cleaned)
+        user = self._user_repository.get_by_email(cleaned)
         if user is None:
             return
         self._revoke_reset_tokens(user.id)
@@ -110,13 +129,6 @@ class AuthService:
         self._user_repository.update(user)
         del self._reset_tokens[self._hash_token(token.strip())]
         self._event_log_service.record(user.id, EventType.PASSWORD_RESET, user.login)
-
-    def _find_by_email(self, email: str) -> User | None:
-        """Найти пользователя по email (без учёта регистра)."""
-        for user in self._user_repository.list_all():
-            if user.email.casefold() == email.casefold():
-                return user
-        return None
 
     def _revoke_reset_tokens(self, user_id: int) -> None:
         """Аннулировать все выданные пользователю коды восстановления."""
