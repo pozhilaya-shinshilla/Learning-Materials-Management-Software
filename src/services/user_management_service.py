@@ -78,7 +78,7 @@ class UserManagementService:
     def ensure_email_available(self, email: str) -> None:
         """Выбросить ошибку, если email неверного формата или уже используется."""
         validate_email(email)
-        if self._find_by_email(email) is not None:
+        if self._user_repository.get_by_email(email) is not None:
             raise DuplicateEmailError(email=email)
 
     def change_role(self, requesting_user: User, target_user_id: int, new_role: Role) -> User:
@@ -122,13 +122,6 @@ class UserManagementService:
         self._event_log_service.record(
             requesting_user.id, EventType.USER_ACCOUNT_CHANGED, f"deleted:{target.login}"
         )
-
-    def _find_by_email(self, email: str) -> User | None:
-        """Найти пользователя по email (без учёта регистра)."""
-        for user in self._user_repository.list_all():
-            if user.email.casefold() == email.casefold():
-                return user
-        return None
 
     def _get_existing_user(self, user_id: int) -> User:
         """Вернуть пользователя или выбросить ошибку, если его нет."""
