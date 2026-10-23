@@ -32,6 +32,12 @@ class AccountBlockedError(DomainError):
     message = "Учетная запись заблокирована. Обратитесь к администратору."
 
 
+class AccountDeletedError(AuthenticationError):
+    """Учётная запись удалена во время открытого сеанса."""
+
+    message = "Учетная запись удалена. Сеанс завершён."
+
+
 class AuthorizationError(DomainError):
     """Пользователь пытается выполнить действие, недоступное его роли."""
 
