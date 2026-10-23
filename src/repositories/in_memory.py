@@ -36,6 +36,14 @@ class InMemoryUserRepository(UserRepository):
                 return user
         return None
 
+    def get_by_email(self, email: str) -> User | None:
+        """Вернуть пользователя с указанным email (без учёта регистра) или None."""
+        wanted = email.casefold()
+        for user in self._users.values():
+            if user.email.casefold() == wanted:
+                return user
+        return None
+
     def list_all(self) -> list[User]:
         """Вернуть всех зарегистрированных пользователей."""
         return list(self._users.values())
