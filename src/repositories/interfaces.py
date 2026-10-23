@@ -21,6 +21,10 @@ class UserRepository(ABC):
         """Вернуть пользователя с указанным логином или None, если его нет."""
 
     @abstractmethod
+    def get_by_email(self, email: str) -> User | None:
+        """Вернуть пользователя с указанным email (без учёта регистра) или None."""
+
+    @abstractmethod
     def list_all(self) -> list[User]:
         """Вернуть всех зарегистрированных пользователей."""
 
