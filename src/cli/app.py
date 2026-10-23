@@ -53,6 +53,12 @@ class CliApplication:
 
     def _run_menu_step(self, user: User, controller: StudentController) -> bool:
         """Показать меню, выполнить одно действие; False — пользователь вышел из аккаунта."""
+        try:
+            self._context.auth_service.ensure_session_active(user)
+        except DomainError as error:
+            print(f"Ошибка: {error}")
+            self._io.pause()
+            return False
         title = f"{controller.menu_title} ({user.login})"
         handler = self._menu.choose(title, controller.menu_items())
         if handler is None:
