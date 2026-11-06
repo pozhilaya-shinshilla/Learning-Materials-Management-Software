@@ -9,7 +9,7 @@ from src.cli.teacher_controller import TeacherController
 from src.domain.enums import Role
 from src.domain.exceptions import SameRoleError
 from src.domain.models import User
-from src.domain.validation import parse_role, role_hint, validate_password
+from src.domain.validation import PASSWORD_REQUIREMENTS, parse_role, role_hint, validate_password
 
 
 class AdminController(TeacherController):
@@ -18,6 +18,7 @@ class AdminController(TeacherController):
     menu_title = "Меню администратора"
 
     def __init__(self, context: ApplicationContext, io: ConsoleIO, user: User) -> None:
+        """Принять контекст сервисов, консольный ввод-вывод и вошедшего администратора."""
         super().__init__(context, io, user)
         self._event_log_service = context.event_log_service
 
@@ -46,7 +47,7 @@ class AdminController(TeacherController):
         self._io.header("Создание пользователя")
         login = self._io.ask("Логин (3-32: латиница, цифры, _ и -): ", self._parse_new_login)
         email = self._io.ask("Email: ", self._parse_new_email)
-        password = self._io.ask("Пароль (не короче 8 символов): ", self._parse_new_password)
+        password = self._io.ask(f"Пароль ({PASSWORD_REQUIREMENTS}): ", self._parse_new_password)
         role = self._io.ask(f"Роль ({role_hint()}): ", parse_role)
         user = self._user_management_service.create_user(self._user, login, email, password, role)
         print(f"Пользователь {user.login} создан, ID: {user.id}, роль: {user.role.label}.")
