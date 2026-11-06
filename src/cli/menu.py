@@ -11,6 +11,7 @@ class MenuRenderer:
     """Рисует меню на чистом экране и читает номер выбранного пункта."""
 
     def __init__(self, io: ConsoleIO) -> None:
+        """Принять консольный ввод-вывод, через который рисуется меню."""
         self._io = io
 
     def choose(self, title: str, items: list[MenuItem]) -> Callable[[], None] | None:
