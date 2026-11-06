@@ -1,27 +1,20 @@
 from __future__ import annotations
 
 from src.bootstrap import ApplicationContext
-from src.cli.admin_controller import AdminController
 from src.cli.auth_controller import AuthController
 from src.cli.console_io import Cancelled, ConsoleIO
+from src.cli.controller_factory import CONTROLLER_FACTORIES
 from src.cli.menu import MenuRenderer
 from src.cli.student_controller import StudentController
-from src.cli.teacher_controller import TeacherController
-from src.domain.enums import Role
 from src.domain.exceptions import DomainError
 from src.domain.models import User
-
-_CONTROLLERS: dict[Role, type[StudentController]] = {
-    Role.STUDENT: StudentController,
-    Role.TEACHER: TeacherController,
-    Role.ADMIN: AdminController,
-}
 
 
 class CliApplication:
     """Точка сборки CLI: вход, выбор меню по роли и запуск выбранного сценария."""
 
     def __init__(self, context: ApplicationContext, io: ConsoleIO) -> None:
+        """Принять контекст сервисов и консольный ввод-вывод, создать контроллер входа и меню."""
         self._context = context
         self._io = io
         self._auth_controller = AuthController(context, io)
@@ -41,12 +34,13 @@ class CliApplication:
     def _sign_in(self) -> User | None:
         """Показать экран входа; None — пользователь выбрал выход из программы."""
         self._io.clear_screen()
-        print("=== Сервис управления учебными материалами ===(login: admin; password: admin123)")
+        print("=== Сервис управления учебными материалами ===(login: admin; password: Admin123!)")
         return self._auth_controller.sign_in()
 
     def _serve(self, user: User) -> None:
         """Показывать меню роли пользователя, пока он не выйдет из аккаунта."""
-        controller = _CONTROLLERS[user.role](self._context, self._io, user)
+        factory = CONTROLLER_FACTORIES[user.role]
+        controller = factory.create_controller(self._context, self._io, user)
         while self._run_menu_step(user, controller):
             pass
         self._auth_controller.sign_out(user)
