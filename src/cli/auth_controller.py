@@ -9,7 +9,12 @@ from src.domain.exceptions import (
     ValidationError,
 )
 from src.domain.models import User
-from src.domain.validation import validate_email, validate_login, validate_password
+from src.domain.validation import (
+    PASSWORD_REQUIREMENTS,
+    validate_email,
+    validate_login,
+    validate_password,
+)
 
 RESET_COMMAND = "/reset"
 
@@ -18,6 +23,7 @@ class AuthController:
     """Сценарии входа: запрос логина и пароля, восстановление пароля, выход из аккаунта."""
 
     def __init__(self, context: ApplicationContext, io: ConsoleIO) -> None:
+        """Принять контекст сервисов и консольный ввод-вывод."""
         self._auth_service = context.auth_service
         self._io = io
 
@@ -78,7 +84,7 @@ class AuthController:
             print("Если учетная запись с таким email существует, на него отправлен код.")
             token = self._io.ask("Код из письма: ", self._parse_reset_token)
             password = self._io.ask(
-                "Новый пароль (не короче 8 символов): ", self._parse_new_password, secret=True
+                f"Новый пароль ({PASSWORD_REQUIREMENTS}): ", self._parse_new_password, secret=True
             )
             self._io.ask(
                 "Повторите пароль: ",
