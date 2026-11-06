@@ -17,6 +17,7 @@ class Cancelled(Exception):
     message = "Действие отменено."
 
     def __init__(self) -> None:
+        """Задать стандартный текст сообщения об отмене."""
         super().__init__(self.message)
 
 
