@@ -52,6 +52,7 @@ class EventType(StrEnum):
     USER_LOGGED_OUT = "user_logged_out"
     MATERIAL_CREATED = "material_created"
     MATERIAL_EDITED = "material_edited"
+    MATERIAL_EDIT_UNDONE = "material_edit_undone"
     MATERIAL_DELETED = "material_deleted"
     MATERIAL_DOWNLOADED = "material_downloaded"
     FILE_UPLOADED = "file_uploaded"
@@ -61,6 +62,8 @@ class EventType(StrEnum):
     DISCIPLINE_RENAMED = "discipline_renamed"
     TOPIC_CREATED = "topic_created"
     TOPIC_RENAMED = "topic_renamed"
+    DISCIPLINE_DELETED = "discipline_deleted"
+    TOPIC_DELETED = "topic_deleted"
     USER_ACCOUNT_CHANGED = "user_account_changed"
     USER_ROLE_CHANGED = "user_role_changed"
     USER_BLOCKED = "user_blocked"
@@ -80,6 +83,7 @@ _EVENT_LABELS: dict[EventType, str] = {
     EventType.USER_LOGGED_OUT: "выход из системы",
     EventType.MATERIAL_CREATED: "материал создан",
     EventType.MATERIAL_EDITED: "материал изменён",
+    EventType.MATERIAL_EDIT_UNDONE: "изменение материала отменено",
     EventType.MATERIAL_DELETED: "материал удалён",
     EventType.MATERIAL_DOWNLOADED: "материал скачан",
     EventType.FILE_UPLOADED: "файл загружен",
@@ -89,6 +93,8 @@ _EVENT_LABELS: dict[EventType, str] = {
     EventType.DISCIPLINE_RENAMED: "дисциплина переименована",
     EventType.TOPIC_CREATED: "тема создана",
     EventType.TOPIC_RENAMED: "тема переименована",
+    EventType.DISCIPLINE_DELETED: "дисциплина удалена",
+    EventType.TOPIC_DELETED: "тема удалена",
     EventType.USER_ACCOUNT_CHANGED: "изменена учётная запись",
     EventType.USER_ROLE_CHANGED: "изменена роль пользователя",
     EventType.USER_BLOCKED: "пользователь заблокирован",
