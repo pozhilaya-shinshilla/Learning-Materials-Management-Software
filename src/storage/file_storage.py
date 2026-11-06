@@ -38,6 +38,7 @@ class LocalFileStorage(FileStorage):
     """Хранит файлы в локальной папке, каждый под уникальным сгенерированным именем."""
 
     def __init__(self, root: Path) -> None:
+        """Запомнить корневую папку хранилища и создать её, если её нет."""
         self._root = root
         self._root.mkdir(parents=True, exist_ok=True)
 
