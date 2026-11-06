@@ -14,3 +14,7 @@ wheels/
 
 # Uploaded material files (local storage for this CLI stage)
 data/
+
+# Web UI
+node_modules/
+frontend/dist/
