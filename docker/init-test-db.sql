@@ -1,0 +1,1 @@
+CREATE DATABASE lms_test OWNER lms;
