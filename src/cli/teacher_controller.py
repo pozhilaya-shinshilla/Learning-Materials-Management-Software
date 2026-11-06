@@ -21,6 +21,7 @@ class TeacherController(StudentController):
             ("Мои материалы", self._my_materials_flow),
             ("Добавить материал", self._create_material_flow),
             ("Редактировать материал", self._edit_material_flow),
+            ("Отменить последнее изменение материала", self._undo_edit_flow),
             ("Удалить материал", self._delete_material_flow),
             ("Добавить дисциплину", self._create_discipline_flow),
             ("Добавить тему", self._create_topic_flow),
@@ -85,6 +86,21 @@ class TeacherController(StudentController):
         """Разобрать название материала: непустое и не длиннее MAX_TITLE_LENGTH."""
         return require_text(raw, "Название", MAX_TITLE_LENGTH)
 
+    def _undo_edit_flow(self) -> None:
+        """Отменить последнее изменение выбранного материала."""
+        undoable = [
+            m
+            for m in self._material_service.list_editable(self._user)
+            if self._material_service.can_undo(m.id)
+        ]
+        if not undoable:
+            print("Нет материалов с изменениями, которые можно отменить.")
+            return
+        self._io.header("Отмена последнего изменения материала")
+        material = self._picker.pick_material("ID материала: ", undoable)
+        restored = self._material_service.undo_last_edit(self._user, material.id)
+        print(f"Изменение отменено. Материал: «{restored.title}».")
+
     def _edit_material_flow(self) -> None:
         """Изменить данные материала."""
         editable = self._material_service.list_editable(self._user)
@@ -115,9 +131,9 @@ class TeacherController(StudentController):
                 new_discipline_id, new_topic_id = discipline.id, topic.id
             else:
                 current_topics = self._catalog_service.list_topics(material.discipline_id)
-                topic = self._picker.pick_optional_topic("Новая тема: ", current_topics)
-                if topic is not None:
-                    new_topic_id = topic.id
+                current_topic = self._picker.pick_optional_topic("Новая тема: ", current_topics)
+                if current_topic is not None:
+                    new_topic_id = current_topic.id
 
         if title is None and description is None and new_topic_id is None:
             print("Ничего не изменено.")
