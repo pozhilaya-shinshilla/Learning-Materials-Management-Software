@@ -32,11 +32,10 @@ class CatalogService:
         topic_repository: TopicRepository,
         event_log_service: EventLogService,
     ) -> None:
+        """Принять хранилища дисциплин и тем и сервис журнала событий."""
         self._discipline_repository = discipline_repository
         self._topic_repository = topic_repository
         self._event_log_service = event_log_service
-
-    # --- чтение ---
 
     def list_disciplines(self) -> list[Discipline]:
         """Вернуть все дисциплины каталога."""
@@ -45,6 +44,28 @@ class CatalogService:
     def list_topics(self, discipline_id: int) -> list[Topic]:
         """Вернуть все темы указанной дисциплины."""
         return self._topic_repository.list_by_discipline(discipline_id)
+
+    def get_discipline(self, discipline_id: int) -> Discipline:
+        """Вернуть дисциплину по id или выбросить `UnknownDisciplineError`."""
+        discipline = self._discipline_repository.get_by_id(discipline_id)
+        if discipline is None:
+            raise UnknownDisciplineError()
+        return discipline
+
+    def get_topic(self, topic_id: int) -> Topic:
+        """Вернуть тему по id или выбросить `UnknownTopicError`."""
+        topic = self._topic_repository.get_by_id(topic_id)
+        if topic is None:
+            raise UnknownTopicError()
+        return topic
+
+    def list_all_topics(self) -> list[Topic]:
+        """Вернуть темы всех дисциплин."""
+        return [
+            topic
+            for discipline in self.list_disciplines()
+            for topic in self.list_topics(discipline.id)
+        ]
 
     def get_discipline_by_name(self, name: str) -> Discipline:
         """Найти дисциплину по названию; в тексте ошибки перечислены существующие названия."""
@@ -67,8 +88,6 @@ class CatalogService:
         discipline = self._discipline_repository.get_by_id(discipline_id)
         topic = self._topic_repository.get_by_id(topic_id)
         return f"{discipline.name if discipline else '?'} / {topic.name if topic else '?'}"
-
-    # --- проверки, которые интерфейс использует до отправки формы ---
 
     def ensure_discipline_name_free(self, name: str, *, exclude_id: int | None = None) -> str:
         """Вернуть очищенное название или выбросить ошибку, если оно пусто или занято.
@@ -108,8 +127,6 @@ class CatalogService:
         if cleaned == topic.name:
             raise NameUnchangedError()
         return cleaned
-
-    # --- изменение ---
 
     def create_discipline(self, requesting_user: User, name: str) -> Discipline:
         """Добавить дисциплину; доступно только преподавателям и администраторам."""
@@ -162,6 +179,26 @@ class CatalogService:
             requesting_user.id, EventType.TOPIC_RENAMED, f"{old_name} -> {topic.name}"
         )
         return topic
+
+    def delete_discipline(self, requesting_user: User, discipline_id: int) -> None:
+        """Удалить дисциплину без тем; доступно только преподавателям и администраторам."""
+        self._require_catalog_manager(requesting_user)
+        discipline = self._discipline_repository.get_by_id(discipline_id)
+        if discipline is None:
+            raise UnknownDisciplineError()
+        self._discipline_repository.delete(discipline_id)
+        self._event_log_service.record(
+            requesting_user.id, EventType.DISCIPLINE_DELETED, discipline.name
+        )
+
+    def delete_topic(self, requesting_user: User, topic_id: int) -> None:
+        """Удалить тему без материалов; доступно только преподавателям и администраторам."""
+        self._require_catalog_manager(requesting_user)
+        topic = self._topic_repository.get_by_id(topic_id)
+        if topic is None:
+            raise UnknownTopicError()
+        self._topic_repository.delete(topic_id)
+        self._event_log_service.record(requesting_user.id, EventType.TOPIC_DELETED, topic.name)
 
     def _require_catalog_manager(self, user: User) -> None:
         """Пропустить только преподавателя или администратора."""
