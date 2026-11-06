@@ -21,6 +21,7 @@ class Picker:
     """Выбор записи из показанного списка: дисциплины, темы, материала или пользователя."""
 
     def __init__(self, io: ConsoleIO, presenter: Presenter) -> None:
+        """Принять консольный ввод-вывод и средство показа списков."""
         self._io = io
         self._presenter = presenter
 
