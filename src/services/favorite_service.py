@@ -20,6 +20,7 @@ class FavoriteService:
         material_repository: MaterialRepository,
         event_log_service: EventLogService,
     ) -> None:
+        """Принять хранилища избранного и материалов и сервис журнала событий."""
         self._favorite_repository = favorite_repository
         self._material_repository = material_repository
         self._event_log_service = event_log_service
@@ -40,16 +41,15 @@ class FavoriteService:
         if not self._favorite_repository.exists(user.id, material_id):
             raise FavoriteNotFoundError(material_id=material_id)
         self._favorite_repository.remove(user.id, material_id)
+        # Закладка была, значит был и материал (`ON DELETE CASCADE`), но его могли удалить
+        # между проверкой и этим чтением: тогда закладки уже нет, как и материала.
         material = self._material_repository.get_by_id(material_id)
-        target = material.title if material is not None else str(material_id)
-        self._event_log_service.record(user.id, EventType.FAVORITE_REMOVED, target)
+        if material is None:
+            raise FavoriteNotFoundError(material_id=material_id)
+        self._event_log_service.record(user.id, EventType.FAVORITE_REMOVED, material.title)
 
     def list_favorites(self, user: User) -> list[Material]:
         """Вернуть материалы, добавленные пользователем в избранное."""
         favorites = self._favorite_repository.list_by_user(user.id)
-        materials = []
-        for favorite in favorites:
-            material = self._material_repository.get_by_id(favorite.material_id)
-            if material is not None:
-                materials.append(material)
-        return materials
+        # Материал каждой закладки существует: при его удалении БД удаляет и закладки.
+        return [self._material_repository.get_by_id(f.material_id) for f in favorites]
