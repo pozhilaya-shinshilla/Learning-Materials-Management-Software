@@ -5,9 +5,6 @@ class DomainError(Exception):
     """Базовый класс всех нарушений бизнес-правил."""
 
     message: str = "Нарушено бизнес-правило."
-    # По умолчанию нарушение правила не отменяет уже сделанные записи (например, событие
-    # «неудачный вход»). Ошибки, вызванные гонкой с другим пользователем, отменяют операцию
-    # целиком: см. `TransactionManager.transaction`.
     rolls_back_transaction: bool = False
 
     def __init__(self, **details: object) -> None:
