@@ -1,25 +1,36 @@
 from __future__ import annotations
 
+from functools import partial
 from pathlib import Path
+from typing import cast
 
-from src.config import ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES
+from src.configs.config import ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES
 from src.domain.enums import EventType, FileType, Role
 from src.domain.exceptions import (
     DisciplineDoesNotExistError,
-    FileTooLargeError,
     ForeignMaterialAccessError,
     MaterialAccessError,
     MaterialFileNotStoredError,
     MaterialNotFoundError,
-    SourceFileNotFoundError,
+    NothingToUndoError,
     TopicDisciplineMismatchError,
     TopicDoesNotExistError,
-    UnsupportedFileTypeError,
 )
 from src.domain.models import Material, User
 from src.domain.validation import MAX_TITLE_LENGTH, require_text
-from src.repositories.interfaces import DisciplineRepository, MaterialRepository, TopicRepository
+from src.repositories.interfaces import (
+    DisciplineRepository,
+    MaterialRepository,
+    MaterialRevisionRepository,
+    TopicRepository,
+)
 from src.services.event_log_service import EventLogService
+from src.services.file_validation import (
+    FileCheck,
+    FileValidationHandler,
+    build_file_validation_chain,
+)
+from src.services.transaction_hooks import ImmediateHooks, TransactionHooks
 from src.storage.file_storage import FileStorage
 
 _MATERIAL_MANAGER_ROLES = frozenset({Role.TEACHER, Role.ADMIN})
@@ -33,14 +44,28 @@ class MaterialService:
         material_repository: MaterialRepository,
         discipline_repository: DisciplineRepository,
         topic_repository: TopicRepository,
+        revision_repository: MaterialRevisionRepository,
         event_log_service: EventLogService,
         file_storage: FileStorage,
+        file_validator: FileValidationHandler | None = None,
+        transaction_hooks: TransactionHooks | None = None,
     ) -> None:
+        """Принять хранилища, журнал событий, файловое хранилище и цепочку проверки файлов.
+
+        `revision_repository` хранит снимки материалов для отмены правок (в БД, не в памяти).
+        `transaction_hooks` привязывает операции с файлами к исходу транзакции: файл удаляется
+        после фиксации, а копия при откате убирается.
+        """
         self._material_repository = material_repository
         self._discipline_repository = discipline_repository
         self._topic_repository = topic_repository
         self._event_log_service = event_log_service
         self._file_storage = file_storage
+        self._revision_repository = revision_repository
+        self._file_validator = file_validator or build_file_validation_chain(
+            ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES
+        )
+        self._hooks = transaction_hooks or ImmediateHooks()
 
     def create_material(
         self,
@@ -55,12 +80,16 @@ class MaterialService:
 
         Тип файла определяется по расширению, а размер читается с диска,
         поэтому вызывающему коду не нужно передавать их вручную.
+
+        Файл копируется сразу (его путь и размер нужны для строки в БД), поэтому на случай отката
+        транзакции копия заранее ставится на удаление: «сирота» без строки в БД не остаётся.
         """
         self._require_material_manager(author)
         title = require_text(title, "Название", MAX_TITLE_LENGTH)
         self._validate_classification(discipline_id, topic_id)
         file_type = self.validate_source_file(source_file_path)
         stored = self._file_storage.store(source_file_path)
+        self._hooks.on_rollback(partial(self._file_storage.delete, stored.storage_path))
         material = Material(
             id=0,
             title=title,
@@ -92,7 +121,7 @@ class MaterialService:
         Все новые значения сначала вычисляются и проверяются, и только потом
         присваиваются: при ошибке проверки материал остаётся прежним.
         """
-        material = self._get_existing_material(material_id)
+        material = self._get_existing_material(material_id, for_update=True, acting_user=editor)
         self._require_ownership(editor, material)
         new_title = (
             material.title if title is None else require_text(title, "Название", MAX_TITLE_LENGTH)
@@ -104,6 +133,7 @@ class MaterialService:
         if discipline_id is not None or topic_id is not None:
             self._validate_classification(new_discipline_id, new_topic_id)
 
+        self._revision_repository.push(material.id, material.create_memento())
         material.title = new_title
         material.description = new_description
         material.discipline_id = new_discipline_id
@@ -112,13 +142,33 @@ class MaterialService:
         self._event_log_service.record(editor.id, EventType.MATERIAL_EDITED, material.title)
         return material
 
+    def undo_last_edit(self, editor: User, material_id: int) -> Material:
+        """Отменить последнее изменение материала, вернув его прежние данные."""
+        material = self._get_existing_material(material_id, for_update=True, acting_user=editor)
+        self._require_ownership(editor, material)
+        memento = self._revision_repository.pop(material_id)
+        if memento is None:
+            raise NothingToUndoError()
+        material.restore(memento)
+        self._material_repository.update(material)
+        self._event_log_service.record(editor.id, EventType.MATERIAL_EDIT_UNDONE, material.title)
+        return material
+
+    def can_undo(self, material_id: int) -> bool:
+        """Вернуть, есть ли у материала изменения, которые можно отменить."""
+        return self._revision_repository.has_history(material_id)
+
     def delete_material(self, remover: User, material_id: int) -> None:
-        """Удалить материал и его сохранённый файл."""
-        material = self._get_existing_material(material_id)
+        """Удалить материал; его файл удаляется после фиксации транзакции.
+
+        Если удалять файл сразу, а фиксация не пройдёт, строка в БД останется без файла.
+        Обратный сбой безвреден: файл без строки лишь занимает место.
+        """
+        material = self._get_existing_material(material_id, for_update=True, acting_user=remover)
         self._require_ownership(remover, material)
         self._material_repository.delete(material_id)
         if material.storage_path:
-            self._file_storage.delete(material.storage_path)
+            self._hooks.on_commit(partial(self._file_storage.delete, material.storage_path))
         self._event_log_service.record(remover.id, EventType.MATERIAL_DELETED, material.title)
 
     def list_materials(self) -> list[Material]:
@@ -157,9 +207,29 @@ class MaterialService:
         material = self._get_existing_material(material_id)
         self._event_log_service.record(downloader.id, EventType.MATERIAL_DOWNLOADED, material.title)
 
-    def _get_existing_material(self, material_id: int) -> Material:
-        """Вернуть материал или выбросить ошибку, если его нет."""
-        material = self._material_repository.get_by_id(material_id)
+    def _get_existing_material(
+        self, material_id: int, *, for_update: bool = False, acting_user: User | None = None
+    ) -> Material:
+        """Вернуть материал или выбросить ошибку, если его нет.
+
+        `for_update=True` блокирует строку до конца транзакции. Так делают все операции,
+        которые читают материал, чтобы потом его менять: правку, отмену правки и удаление.
+        Две такие операции над одним материалом выполняются по очереди, и вторая видит
+        результат первой: снимок для отмены берётся с настоящего прежнего состояния, один
+        снимок не достают дважды, а правка удалённого материала даёт `MaterialNotFoundError`,
+        а не молчаливый успех.
+
+        `acting_user` — кто меняет материал. Его строку и строку автора хранилище блокирует
+        раньше строки материала: удаление пользователя идёт в том же порядке (пользователь, затем
+        его материалы), и встречных ожиданий, которые PostgreSQL разрывает как взаимную
+        блокировку, не возникает. Если пользователя уже удалили, это `AccountDeletedError`.
+        """
+        if for_update:
+            material = self._material_repository.get_by_id_for_update(
+                material_id, acting_user_id=None if acting_user is None else acting_user.id
+            )
+        else:
+            material = self._material_repository.get_by_id(material_id)
         if material is None:
             raise MaterialNotFoundError(material_id=material_id)
         return material
@@ -170,26 +240,8 @@ class MaterialService:
         Возвращает определённый тип файла. Интерфейс вызывает метод сразу после
         ввода пути, чтобы неверный путь можно было переспросить немедленно.
         """
-        if not source_file_path.is_file():
-            raise SourceFileNotFoundError(path=source_file_path)
-        file_type = self._detect_file_type(source_file_path)
-        if source_file_path.stat().st_size > MAX_FILE_SIZE_BYTES:
-            max_mb = MAX_FILE_SIZE_BYTES // (1024 * 1024)
-            raise FileTooLargeError(max_mb=max_mb)
-        return file_type
-
-    def _detect_file_type(self, source_file_path: Path) -> FileType:
-        """Определить тип файла по расширению и убедиться, что он разрешён."""
-        extension = source_file_path.suffix.lstrip(".").lower()
-        try:
-            file_type = FileType(extension)
-        except ValueError:
-            file_type = None
-        if file_type is None or file_type not in ALLOWED_FILE_TYPES:
-            allowed = ", ".join(sorted(t.value for t in ALLOWED_FILE_TYPES))
-            shown = f"'.{extension}'" if extension else "без расширения"
-            raise UnsupportedFileTypeError(shown=shown, allowed=allowed)
-        return file_type
+        checked = self._file_validator.handle(FileCheck(source_file_path))
+        return cast(FileType, checked.file_type)
 
     def _validate_classification(self, discipline_id: int, topic_id: int) -> None:
         """Проверить, что дисциплина и тема существуют и тема относится к дисциплине."""
