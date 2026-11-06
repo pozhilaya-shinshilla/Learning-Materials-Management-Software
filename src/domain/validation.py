@@ -16,20 +16,23 @@ from src.domain.exceptions import (
     NotPositiveIntegerError,
     PasswordRequiredError,
     PasswordTooShortError,
+    PasswordTooWeakError,
     UnknownFileTypeError,
     UnknownRoleError,
     UnknownSortOptionError,
 )
 
-_LOGIN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{3,32}$")
-_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_LOGIN_PATTERN = re.compile(r"[A-Za-z0-9_-]{3,32}")
+_EMAIL_PATTERN = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 MIN_PASSWORD_LENGTH = 8
+PASSWORD_REQUIREMENTS = (
+    f"не короче {MIN_PASSWORD_LENGTH} символов, с заглавной буквой, цифрой и специальным символом"
+)
 MAX_NAME_LENGTH = 100
 MAX_TITLE_LENGTH = 200
 
 _DATE_FORMATS = ("%d.%m.%Y", "%Y-%m-%d")
 
-# Варианты сортировки списка материалов: (подпись, поле, направление).
 SORT_OPTIONS: tuple[tuple[str, SortField, SortOrder], ...] = (
     ("по дате загрузки — сначала новые", SortField.UPLOAD_DATE, SortOrder.DESCENDING),
     ("по дате загрузки — сначала старые", SortField.UPLOAD_DATE, SortOrder.ASCENDING),
@@ -42,25 +45,43 @@ _YES = frozenset({"y", "yes", "д", "да"})
 _NO = frozenset({"n", "no", "н", "нет"})
 
 
-# --- учётные данные ---------------------------------------------------------
-
-
 def validate_login(login: str) -> None:
     """Логин: 3-32 символа, латинские буквы, цифры, '_' или '-'."""
-    if not _LOGIN_PATTERN.match(login):
+    if not _LOGIN_PATTERN.fullmatch(login):
         raise InvalidLoginError()
 
 
 def validate_email(email: str) -> None:
     """Email должен выглядеть как local@domain.tld."""
-    if not _EMAIL_PATTERN.match(email):
+    if not _EMAIL_PATTERN.fullmatch(email):
         raise InvalidEmailError()
 
 
 def validate_password(plain_password: str) -> None:
-    """Пароль не короче MIN_PASSWORD_LENGTH символов."""
+    """Пароль не короче MIN_PASSWORD_LENGTH символов, с заглавной буквой, цифрой и символом.
+
+    Специальный символ — любой, кроме букв, цифр и пробельных знаков.
+    """
     if len(plain_password) < MIN_PASSWORD_LENGTH:
         raise PasswordTooShortError(min_length=MIN_PASSWORD_LENGTH)
+    missing = _missing_password_parts(plain_password)
+    if missing:
+        raise PasswordTooWeakError(missing=", ".join(missing))
+
+
+def _missing_password_parts(plain_password: str) -> list[str]:
+    """Вернуть названия видов символов, которых в пароле нет."""
+    checks = (
+        ("заглавную букву", str.isupper),
+        ("цифру", str.isdecimal),
+        ("специальный символ", _is_special_character),
+    )
+    return [name for name, check in checks if not any(check(char) for char in plain_password)]
+
+
+def _is_special_character(char: str) -> bool:
+    """Символ не является ни буквой, ни цифрой, ни пробельным знаком."""
+    return not char.isalnum() and not char.isspace()
 
 
 def validate_credentials_present(login: str, plain_password: str) -> None:
@@ -72,9 +93,6 @@ def validate_credentials_present(login: str, plain_password: str) -> None:
         raise PasswordRequiredError()
 
 
-# --- текстовые поля ---------------------------------------------------------
-
-
 def require_text(raw: str, field_name: str, max_length: int = MAX_NAME_LENGTH) -> str:
     """Вернуть строку без крайних пробелов; она не должна быть пустой или слишком длинной."""
     value = raw.strip()
@@ -83,9 +101,6 @@ def require_text(raw: str, field_name: str, max_length: int = MAX_NAME_LENGTH) -
     if len(value) > max_length:
         raise FieldTooLongError(field_name=field_name, max_length=max_length)
     return value
-
-
-# --- разбор значений из строки ----------------------------------------------
 
 
 def parse_positive_int(raw: str) -> int:
@@ -162,6 +177,7 @@ class OptionalParser[T]:
     """
 
     def __init__(self, parser: Callable[[str], T]) -> None:
+        """Принять парсер, который будет применяться к непустой строке."""
         self._parser = parser
 
     def __call__(self, raw: str) -> T | None:
