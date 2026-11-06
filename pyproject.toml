@@ -5,16 +5,24 @@ description = "Backend сервиса управления учебными ма
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "alembic",
+    "alembic[tz]",
     "fastapi",
-    "nltk",
+    "psycopg[binary]>=3.3.6",
     "pydantic",
+    "python-multipart>=0.0.32",
     "sqlalchemy",
+    "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.16.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-randomly>=5.0.0",
+    "pytest-socket>=0.8.1",
     "ruff",
+    "schemathesis>=4.33.0",
 ]
 
 [tool.ruff]
@@ -26,3 +34,24 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra -m \"not db\""
+markers = [
+    "db: нужна настоящая PostgreSQL (по умолчанию не запускаются; pytest -m db)",
+    "fuzz: перебор запросов по схеме OpenAPI (pytest -m \"not fuzz and not db\" пропускает)",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]
