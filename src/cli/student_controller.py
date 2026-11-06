@@ -9,7 +9,7 @@ from src.cli.console_io import ConsoleIO
 from src.cli.menu import MenuItem
 from src.cli.picker import Picker
 from src.cli.presenter import Presenter
-from src.config import ALLOWED_FILE_TYPES
+from src.configs.config import ALLOWED_FILE_TYPES
 from src.domain.enums import SortField, SortOrder
 from src.domain.exceptions import (
     DateRangeError,
@@ -24,7 +24,7 @@ from src.domain.validation import (
     parse_file_type,
     parse_sort_option,
 )
-from src.services.search_service import MaterialFilter
+from src.services.search_service import MaterialFilterBuilder
 
 
 class StudentController:
@@ -34,6 +34,7 @@ class StudentController:
     _manages_catalog = False
 
     def __init__(self, context: ApplicationContext, io: ConsoleIO, user: User) -> None:
+        """Принять контекст сервисов, консольный ввод-вывод и вошедшего пользователя."""
         self._io = io
         self._user = user
         self._material_service = context.material_service
@@ -117,13 +118,14 @@ class StudentController:
             lambda raw: self._parse_date_to(raw, date_from),
         )
         sort_field, sort_order = self._ask_sort_option()
-        criteria = MaterialFilter(
-            query=query,
-            discipline_id=discipline.id if discipline else None,
-            topic_id=topic.id if topic else None,
-            file_type=file_type,
-            uploaded_on_or_after=date_from,
-            uploaded_on_or_before=date_to,
+        criteria = (
+            MaterialFilterBuilder()
+            .with_query(query)
+            .in_discipline(discipline.id if discipline else None)
+            .in_topic(topic.id if topic else None)
+            .of_type(file_type)
+            .uploaded_between(date_from, date_to)
+            .build()
         )
         results = self._search_service.search(
             criteria, sort_field=sort_field, sort_order=sort_order
