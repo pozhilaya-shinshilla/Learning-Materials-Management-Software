@@ -1,0 +1,62 @@
+# Всё приложение одной командой: `docker compose up -d --build`
+# (PostgreSQL + REST API + веб-интерфейс на nginx: http://localhost:8000).
+# Перед первым запуском: `cp .env.example .env` и задайте ADMIN_PASSWORD.
+# Только база для разработки без контейнера приложения: `docker compose up -d db`.
+# Параметры БД совпадают со значением DATABASE_URL по умолчанию (src/configs/settings.py).
+services:
+  db:
+    image: postgres:16
+    container_name: lms-postgres
+    environment:
+      POSTGRES_USER: lms
+      POSTGRES_PASSWORD: lms
+      POSTGRES_DB: lms
+    ports:
+      - "5432:5432"
+    volumes:
+      - lms_pgdata:/var/lib/postgresql/data
+      # Создаёт вторую базу для тестов при первом запуске контейнера.
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms -d lms"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    container_name: lms-app
+    depends_on:
+      db:
+        condition: service_healthy
+    # ADMIN_*, SMTP_*, APP_TIMEZONE и прочее берутся из .env (если файл есть).
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Внутри сети compose база доступна по имени сервиса `db`, а не по localhost.
+      DATABASE_URL: postgresql+psycopg://lms:lms@db:5432/lms
+      APP_HOST: 0.0.0.0
+    # Наружу API публикует nginx (сервис web); для прямого доступа раскомментируйте порт.
+    expose:
+      - "8000"
+    # ports:
+    #   - "8000:8000"
+    volumes:
+      # Загруженные материалы переживают пересоздание контейнера.
+      - lms_uploads:/app/data
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    container_name: lms-web
+    depends_on:
+      - app
+    # Веб-интерфейс и API на одном адресе: http://localhost:8000 (/api, /docs проксируются в app).
+    ports:
+      - "8000:80"
+    restart: unless-stopped
+
+volumes:
+  lms_pgdata:
+  lms_uploads:
