@@ -5,13 +5,15 @@ class DomainError(Exception):
     """Базовый класс всех нарушений бизнес-правил."""
 
     message: str = "Нарушено бизнес-правило."
+    # По умолчанию нарушение правила не отменяет уже сделанные записи (например, событие
+    # «неудачный вход»). Ошибки, вызванные гонкой с другим пользователем, отменяют операцию
+    # целиком: см. `TransactionManager.transaction`.
+    rolls_back_transaction: bool = False
 
     def __init__(self, **details: object) -> None:
+        """Сохранить подробности ошибки и подставить их в текст сообщения."""
         self.details = details
         super().__init__(self.message.format(**details))
-
-
-# --- аутентификация и права -------------------------------------------------
 
 
 class AuthenticationError(DomainError):
@@ -26,6 +28,18 @@ class InvalidResetTokenError(AuthenticationError):
     message = "Код восстановления недействителен или устарел."
 
 
+class NotAuthenticatedError(AuthenticationError):
+    """Запрос к закрытому методу API пришёл без токена доступа."""
+
+    message = "Требуется вход: передайте токен в заголовке Authorization: Bearer <токен>."
+
+
+class InvalidTokenError(AuthenticationError):
+    """Токен доступа к API неверен, отозван или истёк."""
+
+    message = "Токен доступа недействителен или истёк. Войдите заново."
+
+
 class AccountBlockedError(DomainError):
     """Заблокированная учётная запись пытается войти в систему."""
 
@@ -33,9 +47,16 @@ class AccountBlockedError(DomainError):
 
 
 class AccountDeletedError(AuthenticationError):
-    """Учётная запись удалена во время открытого сеанса."""
+    """Учётная запись удалена во время открытого сеанса или текущей операции."""
 
     message = "Учетная запись удалена. Сеанс завершён."
+    rolls_back_transaction = True
+
+
+class RoleChangedError(AuthenticationError):
+    """Администратор изменил роль учётной записи во время открытого сеанса."""
+
+    message = "Роль вашей учётной записи изменена. Сеанс завершён, войдите заново."
 
 
 class AuthorizationError(DomainError):
@@ -92,13 +113,70 @@ class SelfDeleteError(AuthorizationError):
     message = "Нельзя удалить собственную учетную запись."
 
 
-# --- сущности ---------------------------------------------------------------
-
-
 class EntityNotFoundError(DomainError):
     """Запрошенная сущность отсутствует в хранилище."""
 
     message = "Запрошенная запись не найдена."
+
+
+class NothingToUndoError(EntityNotFoundError):
+    """У материала нет изменений, которые можно отменить."""
+
+    message = "У этого материала нет изменений, которые можно отменить."
+
+
+class SmtpSettingsError(DomainError):
+    """Настройки SMTP заданы неверно.
+
+    Поле шаблона: `reason`.
+    """
+
+    message = "Некорректные настройки SMTP: {reason}"
+
+
+class ServerSettingsError(DomainError):
+    """Некорректная настройка запуска сервера (`APP_HOST`, `APP_PORT`, `DB_WAIT_SECONDS`).
+
+    Поле шаблона: `reason` — что именно не так.
+    """
+
+    message = "Некорректные настройки сервера: {reason}."
+
+
+class DatabaseUnavailableError(DomainError):
+    """База данных не ответила за отведённое время.
+
+    Поля шаблона: `seconds` — сколько ждали, `reason` — последняя ошибка подключения.
+    """
+
+    message = "База данных недоступна за {seconds} с: {reason}"
+
+
+class TimezoneSettingsError(DomainError):
+    """В `APP_TIMEZONE` указан неизвестный часовой пояс.
+
+    Поле шаблона: `name` — введённое название.
+    """
+
+    message = "APP_TIMEZONE «{name}» не является часовым поясом IANA (например, Europe/Volgograd)."
+
+
+class DatabaseSettingsError(DomainError):
+    """Настройки подключения к базе данных заданы неверно.
+
+    Поле шаблона: `reason`.
+    """
+
+    message = "Некорректные настройки базы данных: {reason}"
+
+
+class DatabaseSchemaError(DomainError):
+    """Схема базы данных не соответствует последней миграции Alembic.
+
+    Поле шаблона: `reason`.
+    """
+
+    message = "Схема базы данных не готова: {reason}"
 
 
 class UnknownDisciplineError(EntityNotFoundError):
@@ -242,6 +320,30 @@ class DuplicateTopicError(DuplicateEntityError):
     message = "Тема «{name}» уже есть в этой дисциплине."
 
 
+class EntityInUseError(DomainError):
+    """Объект нельзя удалить: на него ссылаются другие записи."""
+
+    message = "Объект используется и не может быть удалён."
+
+
+class DisciplineNotEmptyError(EntityInUseError):
+    """В дисциплине есть темы, поэтому удалить её нельзя.
+
+    Поле шаблона: `name`.
+    """
+
+    message = "Дисциплину «{name}» нельзя удалить: в ней есть темы."
+
+
+class TopicInUseError(EntityInUseError):
+    """К теме привязаны материалы, поэтому удалить её нельзя.
+
+    Поле шаблона: `name`.
+    """
+
+    message = "Тему «{name}» нельзя удалить: к ней привязаны материалы."
+
+
 class DuplicateFavoriteError(DuplicateEntityError):
     """Материал уже находится в избранном пользователя.
 
@@ -249,9 +351,6 @@ class DuplicateFavoriteError(DuplicateEntityError):
     """
 
     message = "Материал «{title}» уже в избранном."
-
-
-# --- проверка входных данных ------------------------------------------------
 
 
 class ValidationError(DomainError):
@@ -284,6 +383,12 @@ class LoginRequiredError(ValidationError):
     message = "Введите логин."
 
 
+class AdminPasswordNotSetError(ValidationError):
+    """Не задан пароль администратора в окружении и в файле `.env`."""
+
+    message = "Не задан ADMIN_PASSWORD (переменная окружения или файл .env)."
+
+
 class PasswordRequiredError(ValidationError):
     """При входе не введён пароль."""
 
@@ -309,6 +414,15 @@ class PasswordTooShortError(ValidationError):
     """
 
     message = "Пароль должен быть не короче {min_length} символов."
+
+
+class PasswordTooWeakError(ValidationError):
+    """В пароле не хватает обязательных видов символов.
+
+    Поле шаблона: `missing` — перечень недостающего («заглавную букву, цифру»).
+    """
+
+    message = "Пароль слишком простой: добавьте {missing}."
 
 
 class NotPositiveIntegerError(ValidationError):
@@ -457,6 +571,12 @@ class SourceFileNotFoundError(ValidationError):
     """
 
     message = "Файл не найден: {path}"
+
+
+class InvalidFileNameError(ValidationError):
+    """Имя файла содержит недопустимые символы (например, нулевой)."""
+
+    message = "Имя файла содержит недопустимые символы."
 
 
 class SourceFilePathRequiredError(ValidationError):
