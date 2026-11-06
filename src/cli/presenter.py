@@ -10,6 +10,7 @@ class Presenter:
     """Форматирует данные для консоли: материалы, пользователи, журнал событий, размеры."""
 
     def __init__(self, catalog_service: CatalogService) -> None:
+        """Принять сервис каталога для подстановки названий дисциплин и тем."""
         self._catalog_service = catalog_service
 
     @staticmethod
@@ -62,8 +63,9 @@ class Presenter:
     def print_events(self, events: list[Event], logins: dict[int, str]) -> None:
         """Напечатать журнал событий; `logins` сопоставляет id пользователя и его логин."""
         for event in events:
-            who = logins.get(event.user_id) or (
-                "гость" if event.user_id == 0 else f"ID {event.user_id} (удален)"
-            )
+            if event.user_id is None:
+                who = "гость или удалённый пользователь"
+            else:
+                who = logins.get(event.user_id) or f"ID {event.user_id} (удален)"
             when = event.occurred_at.astimezone().strftime(_DATE_TIME_FORMAT)
             print(f"{when}  {who}: {event.event_type.label} — {event.target}")
