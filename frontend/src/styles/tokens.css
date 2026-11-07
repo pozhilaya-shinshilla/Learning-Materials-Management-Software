@@ -1,0 +1,152 @@
+/* Автоматически из design-tokens.json: node scripts/build-tokens.cjs. Руками не править. */
+/* Слой 1. Primitive: сырые значения */
+:root {
+  --primitive-color-white: #FFFFFF;
+  --primitive-color-ink-50: #F8FAFC;
+  --primitive-color-ink-100: #E9EEF5;
+  --primitive-color-ink-150: #E1E9F3;
+  --primitive-color-ink-200: #CBD5E1;
+  --primitive-color-ink-400: #76849A;
+  --primitive-color-ink-600: #475569;
+  --primitive-color-ink-900: #0F172A;
+  --primitive-color-night-100: #E6EBF2;
+  --primitive-color-night-400: #9AA7BA;
+  --primitive-color-night-500: #7889A3;
+  --primitive-color-night-700: #34445C;
+  --primitive-color-night-800: #1F2E45;
+  --primitive-color-night-900: #162236;
+  --primitive-color-night-950: #0E1726;
+  --primitive-color-navy-200: #A9C5EA;
+  --primitive-color-navy-300: #8FB3E0;
+  --primitive-color-navy-700: #1E3A5F;
+  --primitive-color-navy-800: #162F4E;
+  --primitive-color-gold-300: #E0B25A;
+  --primitive-color-gold-700: #A16207;
+  --primitive-color-red-300: #FCA5A5;
+  --primitive-color-red-400: #F87171;
+  --primitive-color-red-600: #DC2626;
+  --primitive-color-red-700: #B91C1C;
+  --primitive-color-green-400: #4ADE80;
+  --primitive-color-green-700: #0F7A4F;
+  --primitive-spacing-0: 0;
+  --primitive-spacing-1: 0.25rem;
+  --primitive-spacing-2: 0.5rem;
+  --primitive-spacing-3: 0.75rem;
+  --primitive-spacing-4: 1rem;
+  --primitive-spacing-5: 1.25rem;
+  --primitive-spacing-6: 1.5rem;
+  --primitive-spacing-8: 2rem;
+  --primitive-spacing-10: 2.5rem;
+  --primitive-spacing-12: 3rem;
+  --primitive-spacing-16: 4rem;
+  --primitive-fontSize-xs: 0.75rem;
+  --primitive-fontSize-sm: 0.875rem;
+  --primitive-fontSize-base: 1rem;
+  --primitive-fontSize-lg: 1.125rem;
+  --primitive-fontSize-xl: 1.25rem;
+  --primitive-fontSize-2xl: 1.5rem;
+  --primitive-fontSize-3xl: 1.875rem;
+  --primitive-font-sans: 'Source Sans 3 Variable', 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --primitive-font-serif: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --primitive-radius-none: 0;
+  --primitive-radius-sm: 0.25rem;
+  --primitive-radius-md: 0.375rem;
+  --primitive-radius-lg: 0.5rem;
+  --primitive-radius-xl: 0.75rem;
+  --primitive-radius-full: 9999px;
+  --primitive-shadow-none: none;
+  --primitive-shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  --primitive-shadow-md: 0 2px 6px -1px rgb(15 23 42 / 0.10), 0 1px 3px -1px rgb(15 23 42 / 0.06);
+  --primitive-duration-fast: 120ms;
+  --primitive-duration-normal: 180ms;
+  --primitive-duration-slow: 260ms;
+}
+
+/* Слой 2. Semantic: назначение (имена shadcn/ui) */
+:root {
+  --background: var(--primitive-color-ink-50);
+  --foreground: var(--primitive-color-ink-900);
+  --card: var(--primitive-color-white);
+  --card-foreground: var(--primitive-color-ink-900);
+  --popover: var(--primitive-color-white);
+  --popover-foreground: var(--primitive-color-ink-900);
+  --primary: var(--primitive-color-navy-700);
+  --primary-hover: var(--primitive-color-navy-800);
+  --primary-foreground: var(--primitive-color-white);
+  --secondary: var(--primitive-color-ink-100);
+  --secondary-foreground: var(--primitive-color-ink-900);
+  --muted: var(--primitive-color-ink-100);
+  --muted-foreground: var(--primitive-color-ink-600);
+  --accent: var(--primitive-color-ink-150);
+  --accent-foreground: var(--primitive-color-ink-900);
+  --highlight: var(--primitive-color-gold-700);
+  --highlight-foreground: var(--primitive-color-white);
+  --destructive: var(--primitive-color-red-600);
+  --destructive-hover: var(--primitive-color-red-700);
+  --destructive-foreground: var(--primitive-color-white);
+  --success: var(--primitive-color-green-700);
+  --success-foreground: var(--primitive-color-white);
+  --border: var(--primitive-color-ink-200);
+  --input: var(--primitive-color-ink-400);
+  --ring: var(--primitive-color-navy-700);
+  --radius: var(--primitive-radius-md);
+  --typography-font-sans: var(--primitive-font-sans);
+  --typography-font-serif: var(--primitive-font-serif);
+  --viewport-min: 20rem;
+}
+
+/* Слой 3. Component: значения для конкретных компонентов (ссылаются на semantic) */
+:root {
+  --button-bg: var(--primary);
+  --button-fg: var(--primary-foreground);
+  --button-hover-bg: var(--primary-hover);
+  --button-padding-x: var(--primitive-spacing-4);
+  --button-padding-y: var(--primitive-spacing-2);
+  --button-min-height: 2.75rem;
+  --button-radius: var(--radius);
+  --button-font-size: var(--primitive-fontSize-sm);
+  --input-bg: var(--card);
+  --input-border: var(--input);
+  --input-focus-ring: var(--ring);
+  --input-padding-x: var(--primitive-spacing-3);
+  --input-min-height: 2.75rem;
+  --input-radius: var(--radius);
+  --card-bg: var(--card);
+  --card-border: var(--border);
+  --card-shadow: var(--primitive-shadow-sm);
+  --card-padding: var(--primitive-spacing-4);
+  --card-radius: var(--primitive-radius-lg);
+  --table-header-bg: var(--muted);
+  --table-row-hover-bg: var(--accent);
+  --table-border: var(--border);
+  --badge-radius: var(--primitive-radius-full);
+}
+
+/* Тёмная тема: переопределены только семантические токены */
+.dark {
+  --background: var(--primitive-color-night-950);
+  --foreground: var(--primitive-color-night-100);
+  --card: var(--primitive-color-night-900);
+  --card-foreground: var(--primitive-color-night-100);
+  --popover: var(--primitive-color-night-900);
+  --popover-foreground: var(--primitive-color-night-100);
+  --primary: var(--primitive-color-navy-300);
+  --primary-hover: var(--primitive-color-navy-200);
+  --primary-foreground: var(--primitive-color-night-950);
+  --secondary: var(--primitive-color-night-800);
+  --secondary-foreground: var(--primitive-color-night-100);
+  --muted: var(--primitive-color-night-800);
+  --muted-foreground: var(--primitive-color-night-400);
+  --accent: var(--primitive-color-night-800);
+  --accent-foreground: var(--primitive-color-night-100);
+  --highlight: var(--primitive-color-gold-300);
+  --highlight-foreground: var(--primitive-color-night-950);
+  --destructive: var(--primitive-color-red-400);
+  --destructive-hover: var(--primitive-color-red-300);
+  --destructive-foreground: var(--primitive-color-night-950);
+  --success: var(--primitive-color-green-400);
+  --success-foreground: var(--primitive-color-night-950);
+  --border: var(--primitive-color-night-700);
+  --input: var(--primitive-color-night-500);
+  --ring: var(--primitive-color-navy-300);
+}
